@@ -16,11 +16,13 @@ class LossConfig(BaseModel):
     epsilon: float=1e-4
     
 class TrainConfig(BaseModel):
-    data_path: str
+    train_path: str
+    test_path:str
     logdir: str
     patient_id: str
     epochs: int
     data_size: float = Field(..., gt=0)
+    train_ratio:float
     val_ratio: float
     test_ratio: float
     batch_size: int

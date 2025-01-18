@@ -65,11 +65,11 @@ def train(config, model_config, loss_config):
     initialize_wandb(config)
     
     # Load data
-    data = load_data(config)
+    # data = load_data(config)
     train_data=load_data(config, "train")
     test_data=load_data(config, "test")
 
-    print(data)
+    # print(data)
     print(train_data)
     print(test_data)
     
@@ -77,7 +77,7 @@ def train(config, model_config, loss_config):
     device = initialize_device()
     
     # Initialize loaders
-    train_loader, val_loader, test_loader, loader_stats = initialize_loaders(data, config)
+    train_loader, val_loader, test_loader, loader_stats = initialize_loaders(train_data,test_data,config)
     
     # Initialize model
     model = initialize_model(config, model_config, device)

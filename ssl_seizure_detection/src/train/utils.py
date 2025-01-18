@@ -8,11 +8,11 @@ import torch
 import torch.nn.functional as F
 import random
 import wandb
-from modules.loss import VICRegT1Loss
+from loss import VICRegT1Loss
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from data.preprocess import run_sorter, combiner, create_data_loaders, extract_layers
-from modules.models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
+from preprocess import run_sorter, combiner, create_data_loaders, extract_layers
+from models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
 
 
 def load_data(config, type):
@@ -301,8 +301,8 @@ def initialize_device():
         print(f"Using device: {device}")
     return device
 
-def initialize_loaders(data, config):
-    loaders, loader_stats = create_data_loaders(data, config)
+def initialize_loaders(train_data,test_data, config):
+    loaders, loader_stats = create_data_loaders(train_data, test_data,config)
     if config.test_ratio != 0:
         train_loader, val_loader, test_loader = loaders
     else:
