@@ -2,16 +2,11 @@
 import os
 import wandb
 from torch.optim.lr_scheduler import CosineAnnealingLR
-import sys
-sys.path.append('/Users/dentira/anomaly-detection/ssl-based-model/ssl-seizure-detection/ssl_seizure_detection/src/train/')
 from utils import *
-
-
-os.environ["WANDB_INIT_TIMEOUT"] = "300"
 import logging
 
 
-def train(config, model_config, loss_config, leave_index):
+def train(config, model_config, loss_config, leave_index, logdir):
     """
     Trains the supervised GNN model, relative positioning model, or temporal shuffling model.
 
@@ -62,7 +57,7 @@ def train(config, model_config, loss_config, leave_index):
         test_acc (list): Test accuracy per epoch.
         info (txt): Training information.
     """
-    log_file_path = f"/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/run_logs/{leave_index}.log"
+    log_file_path = f"{logdir}/{leave_index}.log"
     if os.path.exists(log_file_path):
         os.remove(log_file_path)
 
@@ -78,8 +73,6 @@ def train(config, model_config, loss_config, leave_index):
     logger.addHandler(file_handler)
     
     logger.info(f"Testing on {leave_index+1}th participant....")
-    # Initialize Weights & Biases
-    initialize_wandb(config)
     
     # Load data
     # data = load_data(config)
@@ -148,9 +141,6 @@ def train(config, model_config, loss_config, leave_index):
          train_f1.append((epoch, epoch_train_f1)), val_f1.append((epoch, epoch_val_f1)),
          train_prec.append((epoch, epoch_train_precision)), val_prec.append((epoch, epoch_val_precision)),
          train_rec.append((epoch, epoch_train_recall)), val_rec.append((epoch, epoch_val_recall)))
-
-        # Weights & Biases Logging
-        wandb_log(epoch, epoch_train_loss, epoch_val_loss, epoch_train_acc, epoch_val_acc)
         
         #<----------Early Stopping---------->
         if early_stopping(epoch_val_loss, best_val_loss, counter, model, model_dir, config):
@@ -182,6 +172,3 @@ def train(config, model_config, loss_config, leave_index):
     
     #<----------Complete Training Sessions---------->
     print("Training complete.")
-    
-    # Weights & Biases finish the experiment
-    wandb.finish()

@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 from embeddings_generator import generate_embeddings 
 import sys
-sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/train')
-sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/config')
+import argparse
+from pathlib import Path    
+PROJECT_ROOT = Path(__file__).resolve().parents[3] 
+sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/train"))
+sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/config"))
 
 from train import train
 from config import TrainConfig
-
+label_base_path = str(PROJECT_ROOT / "parsed_labels")
 def generate_all_embeddings(total_particpants, data_base_path,label_base_path):
     if total_particpants >= 4:
         total_particpants += 1
@@ -62,20 +65,21 @@ def LOO_training(data_path, logdir, index):
     )
 
 
-    train(train_config, model_config, loss_config, index)
+    train(train_config, model_config, loss_config, index, logdir)
 
 
 if __name__ == "__main__":
-    total_particpants = 3
-    data_base_path = "/Users/dentira/anomaly-detection/1.0.0"
-    label_base_path = "/Users/dentira/anomaly-detection/epilepsy-detection/parsed_labels"
-    generate_all_embeddings(total_particpants,data_base_path,label_base_path)
+    parser = argparse.ArgumentParser(description="Parser for preprocess and training script")
+    parser.add_argument("-dp", "--data_base_path", type=str, help ="path to your data directory", required=True)
+    parser.add_argument("-dl", "--data_log", type=str, help ="path to dump your graph embeddings", required=True)
+    parser.add_argument("-sl", "--stat_log", type=str, help ="path to dump your training stats", required=True)
+    parser.add_argument("-p", "--total_participants", type=int, help ="number of participants data to train on", required=True)
 
-    data_path = "/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/data/patient_gr"
-    logdir = "/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/1.0"
+    args = parser.parse_args()
+    # generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path)
 
-    for i in range(total_particpants):
-        LOO_training(data_path,logdir,i)
+    for i in range(args.total_participants):
+        LOO_training(args.data_log,args.stat_log,i)
 
     
 

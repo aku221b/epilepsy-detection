@@ -6,7 +6,9 @@ from mne_connectivity import spectral_connectivity_epochs
 from scipy.signal import welch,detrend
 import pickle
 import sys
-sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/data')
+from pathlib import Path    
+PROJECT_ROOT = Path(__file__).resolve().parents[3] 
+sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 from preprocess import new_grs, create_tensordata_new, convert_to_Data, pseudo_data, convert_to_PairData, convert_to_TripletData
 
 

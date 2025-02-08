@@ -1,6 +1,8 @@
 import sys
-sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/modules')
-sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/data')
+from pathlib import Path 
+PROJECT_ROOT = Path(__file__).resolve().parents[3] 
+sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/modules"))
+sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 import time
 import json
 import os
@@ -378,7 +380,6 @@ def testing_and_logging(config, model, test_loader, criterion, device, optimizer
     save_to_json(test_loss, stats_dir, "test_loss.json")
     save_to_json(test_acc, stats_dir, "test_acc.json")
     print(f"Training complete. Test Loss: {test_loss}. Test Accuracy: {test_acc}.")
-    wandb.log({"Test Loss": test_loss, "Test Accuracy": test_acc})
 
 def save_stats(train_loss, val_loss, train_acc, val_acc, stats_dir):
     save_to_json(train_loss, stats_dir, "train_loss.json")
