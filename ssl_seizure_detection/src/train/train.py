@@ -8,8 +8,10 @@ from utils import *
 
 
 os.environ["WANDB_INIT_TIMEOUT"] = "300"
+import logging
 
-def train(config, model_config, loss_config):
+
+def train(config, model_config, loss_config, leave_index):
     """
     Trains the supervised GNN model, relative positioning model, or temporal shuffling model.
 
@@ -60,18 +62,32 @@ def train(config, model_config, loss_config):
         test_acc (list): Test accuracy per epoch.
         info (txt): Training information.
     """
+    log_file_path = f"/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/run_logs/{leave_index}.log"
+    if os.path.exists(log_file_path):
+        os.remove(log_file_path)
+
+    logger = logging.getLogger(f"training_logger_{leave_index}")
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler(log_file_path)
+    file_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
     
+    logger.info(f"Testing on {leave_index+1}th participant....")
     # Initialize Weights & Biases
     initialize_wandb(config)
     
     # Load data
     # data = load_data(config)
-    train_data=load_data(config, "train")
-    test_data=load_data(config, "test")
+    train_data, test_data=load_data(config, leave_index)
 
     # print(data)
-    print(train_data)
-    print(test_data)
+    # print(train_data)
+    # print(test_data)
     
     # Initialize device
     device = initialize_device()
@@ -96,7 +112,7 @@ def train(config, model_config, loss_config):
     counter = 0
 
     # Initialize statistics
-    train_loss, val_loss, train_acc, val_acc = [], [], [], []
+    train_loss, val_loss, train_acc, val_acc, train_f1, val_f1, train_prec, val_prec, train_rec, val_rec = [],[],[],[],[],[],[],[],[],[]
 
     # Create directory to save model and stats
     model_dir, stats_dir = create_model_stats_dir(config)
@@ -105,15 +121,33 @@ def train(config, model_config, loss_config):
     for epoch in range(config.epochs):
 
         #<----------Training---------->
-        epoch_train_loss, epoch_train_acc = process_model(config, model, train_loader, criterion, device, "training", optimizer)
+        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_loader, criterion, device, "training", optimizer)
 
         #<----------Validation---------->
-        epoch_val_loss, epoch_val_acc = process_model(config, model, val_loader, criterion, device, "evaluation", optimizer)
-        
-        print(f'Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, Train Accuracy: {epoch_train_acc}, Validation Loss: {epoch_val_loss}, Validation Accuracy: {epoch_val_acc}')
+        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, val_loader, criterion, device, "evaluation", optimizer)
+        print(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 
+              Train Accuracy: {epoch_train_acc}, Train F1: {epoch_train_f1}, 
+              Train Precision: {epoch_train_precision} Train Recall: {epoch_train_recall} 
+              Train 0s count: {epoch_train_pred_zero} Train 1s count: {epoch_train_pred_ones} 
+              Validation Loss: {epoch_val_loss}, Validation Accuracy: {epoch_val_acc} 
+              Validation F1: {epoch_val_f1}, Validation Precision: {epoch_val_precision} 
+              Validation Recall: {epoch_val_recall} 
+              Validation 0s count: {epoch_val_pred_zero} Validation 1s count: {epoch_val_pred_ones}""")
+        logger.info(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 
+              Train Accuracy: {epoch_train_acc}, Train F1: {epoch_train_f1}, 
+              Train Precision: {epoch_train_precision} Train Recall: {epoch_train_recall} 
+              Train 0s count: {epoch_train_pred_zero} Train 1s count: {epoch_train_pred_ones} 
+              Validation Loss: {epoch_val_loss}, Validation Accuracy: {epoch_val_acc} 
+              Validation F1: {epoch_val_f1}, Validation Precision: {epoch_val_precision} 
+              Validation Recall: {epoch_val_recall} 
+              Validation 0s count: {epoch_val_pred_zero} Validation 1s count: {epoch_val_pred_ones}""")
 
         #<----------Statistics---------->
-        (train_loss.append((epoch, epoch_train_loss)), val_loss.append((epoch, epoch_val_loss)), train_acc.append((epoch, epoch_train_acc)), val_acc.append((epoch, epoch_val_acc)))
+        (train_loss.append((epoch, epoch_train_loss, )), val_loss.append((epoch, epoch_val_loss)), 
+         train_acc.append((epoch, epoch_train_acc)), val_acc.append((epoch, epoch_val_acc)), 
+         train_f1.append((epoch, epoch_train_f1)), val_f1.append((epoch, epoch_val_f1)),
+         train_prec.append((epoch, epoch_train_precision)), val_prec.append((epoch, epoch_val_precision)),
+         train_rec.append((epoch, epoch_train_recall)), val_rec.append((epoch, epoch_val_recall)))
 
         # Weights & Biases Logging
         wandb_log(epoch, epoch_train_loss, epoch_val_loss, epoch_train_acc, epoch_val_acc)
@@ -137,14 +171,14 @@ def train(config, model_config, loss_config):
     save_stats(train_loss, val_loss, train_acc, val_acc, stats_dir)
     
     #<----------Save Training Information---------->
-    info_dict = get_wandb_info(config, model_config, loss_config, loader_stats)
+    # info_dict = get_wandb_info(config, model_config, loss_config, loader_stats)
     
-    if config.test_ratio!=0:
-        info_dict['Test examples'] = loader_stats["test_examples"]
-        info_dict['Test batches'] = loader_stats["test_batches"]
+    # if config.test_ratio!=0:
+    #     info_dict['Test examples'] = loader_stats["test_examples"]
+    #     info_dict['Test batches'] = loader_stats["test_batches"]
 
-    wandb.config.update(info_dict)
-    save_final_json(info_dict, stats_dir)
+    # wandb.config.update(info_dict)
+    # save_final_json(info_dict, stats_dir)
     
     #<----------Complete Training Sessions---------->
     print("Training complete.")

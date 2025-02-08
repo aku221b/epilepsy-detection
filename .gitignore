@@ -4,5 +4,5 @@ __pycache__/
 *.egg-info/
 .venv
 pyg_grs.pt
-src/wandb/
-notebooks/wandb/
+/wandb
+/ssl_seizure_detection/run_logs

@@ -1,6 +1,6 @@
 import sys
-sys.path.append('/Users/dentira/anomaly-detection/ssl-based-model/ssl-seizure-detection/ssl_seizure_detection/src/modules/')
-sys.path.append('/Users/dentira/anomaly-detection/ssl-based-model/ssl-seizure-detection/ssl_seizure_detection/src/data/')
+sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/modules')
+sys.path.append('/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/src/data')
 import time
 import json
 import os
@@ -13,9 +13,11 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from preprocess import run_sorter, combiner, create_data_loaders, extract_layers
 from models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
+from sklearn.metrics import f1_score, recall_score, precision_score
 
 
-def load_data(config, type):
+
+def load_data(config, leave_index):
     """
     Loads data from a folder of multiple runs.
 
@@ -27,33 +29,44 @@ def load_data(config, type):
     Returns:
         data (list): A list of graph representations for a certain number of runs, where the runs included depend on run_type.
     """
-    if type=="train":
-        data = run_sorter(config.train_path, config.run_type)
-    else:
-        data = run_sorter(config.test_path, config.run_type)
+    train_data, test_data = run_sorter(config.data_path,leave_index, config.run_type)
     
     # Compute total samples
-    n = 0
-    for run in data:
-        n += len(run)
+    train_n = 0
+    for run in train_data:
+        train_n += len(run)
+    test_n = 0
+    for run in test_data:
+        test_n += len(run)
 
-    if config.data_size <= 1.0:
-        desired_samples = int(n * config.data_size)
-    elif config.data_size > 1.0:
-        desired_samples = config.data_size
+    if config.train_ratio <= 1.0:
+        desired_samples_train = int(train_n * config.train_ratio)
+    elif config.train_ratio > 1.0:
+        desired_samples_train = config.train_ratio
+
+    total_test_ratio = config.test_ratio + config.val_ratio
+
+    if total_test_ratio <= 1.0:
+        desired_samples_test = int(test_n *total_test_ratio)
+    elif total_test_ratio > 1.0:
+        desired_samples_test = total_test_ratio
     
     if config.run_type == "all":
-        if data:  # Check if data is not empty
-            data = combiner(data, desired_samples)
+        if train_data:  # Check if data is not empty
+            train_data = combiner(train_data, desired_samples_train)
+        if test_data:
+            test_data = combiner(test_data, desired_samples_test)
         else:
             print("Error. No data provided from run_sorter().")
             return None
     else:
         # Scale down data size and return
-        random.shuffle(data)
-        data = data[:desired_samples]
+        random.shuffle(train_data)
+        train_data = train_data[:desired_samples_train]
+        random.shuffle(test_data)
+        test_data = test_data[:desired_samples_test]
 
-    return data
+    return train_data,test_data
 
 
 def forward_pass(model, batch, model_id="supervised", classify="binary", head="linear", p=0.1):
@@ -105,13 +118,16 @@ def update_time(start_time, mode="training"):
     return end_time
 
 
-def calculate_metrics(epoch_train_loss, correct_train, total_train, train_loader, model_id):
+def calculate_metrics(epoch_train_loss, correct_train, total_train, predictions_train, labels_train, train_loader, model_id):
 
     avg_loss = epoch_train_loss / len(train_loader)
+    f1 = f1_score(labels_train, predictions_train)
+    precision = precision_score(labels_train, predictions_train)
+    recall = recall_score(labels_train, predictions_train)
     
     if model_id != "VICRegT1":
         accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
-        return avg_loss, accuracy
+        return avg_loss, accuracy,f1, precision, recall
     else:
         return avg_loss, None
     
@@ -143,7 +159,7 @@ def process_model(config, model, loader, criterion, device, mode="training", opt
     elif mode == "evaluation":
         model.eval()
     
-    epoch_loss, correct, total = 0, 0, 0
+    epoch_loss, correct, total,predictions_arr,labels_arr = 0, 0, 0, [], []
     if config.timing:
         start_time = time.time()
 
@@ -164,12 +180,17 @@ def process_model(config, model, loader, criterion, device, mode="training", opt
                 predictions = get_predictions(config.classify, outputs, device)
                 correct += (predictions == labels).sum().item()
                 total += labels.size(0)
+                predictions_arr.extend(predictions)
+                labels_arr.extend(labels)
 
         if config.timing and batch_idx % 100 == 0:
             start_time = update_time(start_time, mode=mode)
-    
-    avg_loss, accuracy = calculate_metrics(epoch_loss, correct, total, loader, config.model_id)
-    return avg_loss, accuracy
+    predictions_arr = torch.tensor(predictions_arr, device=device)
+    labels_arr = torch.tensor(labels_arr, device=device)    
+    pred_zero = torch.sum(predictions_arr == 0).item()
+    pred_ones = torch.sum(predictions_arr == 1).item()
+    avg_loss, accuracy,f1, precision, recall = calculate_metrics(epoch_loss, correct, total, predictions_arr,labels_arr,loader, config.model_id)
+    return avg_loss, accuracy,f1, precision, recall, pred_zero, pred_ones
 
 
 

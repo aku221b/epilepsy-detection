@@ -707,7 +707,7 @@ def convert_to_TripletData(data_list, save=True, logdir=None):
     return converted_data
 
 
-def run_sorter(logdir, runtype="all"):
+def run_sorter(logdir,leave_index, run_type="all"):
     """
     Returns the list of patients runs dependent on the settings.
 
@@ -719,19 +719,25 @@ def run_sorter(logdir, runtype="all"):
     Returns:
         list or tensor: List of runs if runtype="all", single run otherwise.
     """
-    if runtype == "combined":
+    if run_type == "combined":
         for run in os.listdir(logdir):
             if run.endswith("_combined.pt"):
                 return torch.load(os.path.join(logdir, run))
-    elif runtype == "all":
-        all_runs = []
+    elif run_type == "all":
+        all_train_runs = []
+        test_runs = []
+        index = 0
         for run in os.listdir(logdir):
             if not run.endswith("_combined.pt"):
-                all_runs.append(torch.load(os.path.join(logdir, run)))
-        return all_runs
+                if index == leave_index:
+                    test_runs.append(torch.load(os.path.join(logdir, run)))
+                else:
+                    all_train_runs.append(torch.load(os.path.join(logdir, run)))
+            index += 1
+        return all_train_runs,test_runs
     else:
         for run in os.listdir(logdir):
-            if run.endswith(runtype + ".pt"):
+            if run.endswith(run_type + ".pt"):
                 return torch.load(os.path.join(logdir, run))
 
 
@@ -784,7 +790,7 @@ def create_train_data_loader(data, config):
     n = len(data)
     indices = list(range(n))
     # Ensure there's no overlap in sample sizes
-    train_size = int(config.train_ratio) if config.train_ratio >= 1 else int(n * config.train_ratio)
+    train_size = int(config.train_ratio) if config.train_ratio > 1 else int(n * config.train_ratio)
     assert (train_size) <= n 
 
     # Randomly sample indices for train, validation, and test sets without replacement
@@ -814,8 +820,8 @@ def create_train_data_loader(data, config):
 def create_test_and_validation_data_loader(data, config):
     n = len(data)
     indices = list(range(n))
-    val_size = int(config.val_ratio) if config.val_ratio >= 1 else int(n * config.val_ratio)
-    test_size = int(config.test_ratio) if config.test_ratio >= 1 else int(n * config.test_ratio)
+    val_size = int(config.val_ratio) if config.val_ratio > 1 else int(n * config.val_ratio)
+    test_size = int(config.test_ratio) if config.test_ratio > 1 else int(n * config.test_ratio)
     # Ensure there's no overlap in sample sizes
     assert (val_size + test_size) <= n
 

@@ -16,8 +16,7 @@ class LossConfig(BaseModel):
     epsilon: float=1e-4
     
 class TrainConfig(BaseModel):
-    train_path: str
-    test_path:str
+    data_path:str
     logdir: str
     patient_id: str
     epochs: int
