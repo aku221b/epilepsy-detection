@@ -722,7 +722,7 @@ def run_sorter(logdir,leave_index, run_type="all"):
     if run_type == "combined":
         for run in os.listdir(logdir):
             if run.endswith("_combined.pt"):
-                return torch.load(os.path.join(logdir, run))
+                return torch.load(os.path.join(logdir, run), weights_only=False)
     elif run_type == "all":
         all_train_runs = []
         test_runs = []
@@ -730,15 +730,15 @@ def run_sorter(logdir,leave_index, run_type="all"):
         for run in os.listdir(logdir):
             if not run.endswith("_combined.pt"):
                 if index == leave_index:
-                    test_runs.append(torch.load(os.path.join(logdir, run)))
+                    test_runs.append(torch.load(os.path.join(logdir, run), weights_only=False))
                 else:
-                    all_train_runs.append(torch.load(os.path.join(logdir, run)))
+                    all_train_runs.append(torch.load(os.path.join(logdir, run), weights_only=False))
             index += 1
         return all_train_runs,test_runs
     else:
         for run in os.listdir(logdir):
             if run.endswith(run_type + ".pt"):
-                return torch.load(os.path.join(logdir, run))
+                return torch.load(os.path.join(logdir, run), weights_only=False)
 
 
 def combiner(all_lists, desired_samples):
