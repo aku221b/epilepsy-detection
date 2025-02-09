@@ -131,10 +131,7 @@ def get_data_matrices(data_path, label_path):
             ictal_list.append(data[:, start:end])
     preictal_mat = np.hstack(preitcal_list)
     ictal_mat = np.hstack(ictal_list)
-    if preictal_mat.shape[1] >= 100000:
-        return preictal_mat[:, :100000], ictal_mat
-    else:
-        return preictal_mat, ictal_mat
+    return preictal_mat, ictal_mat
 
 def generate_graphs(data, fcns):
     i = 0
@@ -178,7 +175,7 @@ def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
 def generate_embeddings_util(preictal_data, ictal_data, index):
-    base_path = "/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/data/supervised/"
+    base_path = "/home/desktop/Desktop/22104412_Docs/MiceEpilepsy/Anamolies/epilepsy_detection_akshat/ssl_seizure_detection/notebooks/data/supervised/"
     file_path_preictal = f"{base_path}preictal_{index}.pkl"
     file_path_ictal = f"{base_path}ictal_{index}.pkl"
 
@@ -203,7 +200,7 @@ def generate_embeddings_util(preictal_data, ictal_data, index):
 
     pyg_grs = get_pyg_grs(num_electrodes,new_data)
 
-    pyg_Data_path = f"/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/data/patient_gr/jh101_pyg_Data_{index}.pt"
+    pyg_Data_path = f"/home/desktop/Desktop/22104412_Docs/MiceEpilepsy/Anamolies/epilepsy_detection_akshat/ssl_seizure_detection/notebooks/data/patient_gr/jh101_pyg_Data_{index}.pt"
 
     convert_to_Data(pyg_grs, save=True, logdir=pyg_Data_path)
 
