@@ -42,4 +42,23 @@ pip install torch_geometric
 ```bash
 conda install scikit-learn pandas scipy
 ```
+# Training 
+precosessing and training pipeline has been combined in a single script.
+### Step 1: cd to the required script
+```bash
+cd <rootDir>/epilepsy-detection/ssl_seizure_detection/notebooks/data
+```
+### Step 2: run the script with appropiate arguments
+here -:
+ <data_base_path> : path to your data directory 
+ <data_log_path> : path to dump your graph embeddings
+ <stat_log_path> : path to dump your training stats
+ <total_participants> : number of participants data to train on
+```bash
+python -dp <data_base_path> -dl <data_log_path> -sl <stat_log_path> -p <total_participants>
+```
+#### Example run:
+```bash
+python preprocess_and_train.py -dp /Users/dentira/anomaly-detection/1.0.0 -dl /Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/data/patient_gr -sl /Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/1.0 -p 2
+```
 
