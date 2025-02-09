@@ -123,9 +123,9 @@ def update_time(start_time, mode="training"):
 def calculate_metrics(epoch_train_loss, correct_train, total_train, predictions_train, labels_train, train_loader, model_id):
 
     avg_loss = epoch_train_loss / len(train_loader)
-    f1 = f1_score(labels_train, predictions_train)
-    precision = precision_score(labels_train, predictions_train)
-    recall = recall_score(labels_train, predictions_train)
+    f1 = f1_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
+    precision = precision_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
+    recall = recall_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     
     if model_id != "VICRegT1":
         accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
@@ -375,7 +375,7 @@ def print_learning_rate(config, optimizer):
         print(f"New lr: {current_lr:.6f}")
 
 def testing_and_logging(config, model, test_loader, criterion, device, optimizer, stats_dir):
-    test_loss, test_acc = process_model(config, model, test_loader, criterion, device, "evaluation", optimizer)
+    test_loss, test_acc, *_ = process_model(config, model, test_loader, criterion, device, "evaluation", optimizer)
         
     save_to_json(test_loss, stats_dir, "test_loss.json")
     save_to_json(test_acc, stats_dir, "test_acc.json")
