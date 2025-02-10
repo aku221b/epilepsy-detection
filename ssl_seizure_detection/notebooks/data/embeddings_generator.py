@@ -18,7 +18,7 @@ logger = logging.getLogger("GraphGeneration")
 logger.setLevel(logging.INFO)
 
 # File handler
-file_handler = logging.FileHandler("/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/run_logs/graph_generation.log")
+file_handler = logging.FileHandler(str(PROJECT_ROOT / "ssl_seizure_detection/run_logs/graph_generation.log"))
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 
