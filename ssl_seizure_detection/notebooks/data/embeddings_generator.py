@@ -150,7 +150,7 @@ def get_data_matrices(data_path, label_path):
             ictal_list.append(data[:, start:end])
     preictal_mat = np.hstack(preitcal_list)
     ictal_mat = np.hstack(ictal_list)
-    return preictal_mat[:, :1000], ictal_mat[:, :1000]
+    return preictal_mat, ictal_mat
 
 def generate_graphs(data, fcns):
     i = 0
