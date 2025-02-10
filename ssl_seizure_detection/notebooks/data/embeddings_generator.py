@@ -98,23 +98,20 @@ def generate_fcns(data, dim):
     fcns = []
     i = 0
     while i < len(data):
-        if np.var(data) == 0:
-            logging.info(f"Skipping: Data has zero variance....{data}.")
-        else: 
-            try:
-                fcn = []
-                # all ones
-                fcn.append(np.ones((dim, dim)))
-                # correlation
-                fcn.append(np.corrcoef(data[i]))
-                # coherence
-                fcn.append(generate_coh_array(data[i]))       
-                # PLV
-                fcn.append(generate_plv_array(data[i]))
+        try:
+            fcn = []
+            # all ones
+            fcn.append(np.ones((dim, dim)))
+            # correlation
+            fcn.append(np.corrcoef(data[i]))
+            # coherence
+            fcn.append(generate_coh_array(data[i]))       
+            # PLV
+            fcn.append(generate_plv_array(data[i]))
 
-                fcns.append(fcn)
-            except Exception as e:
-                logger.error(f"Skipping the data point as {e}")  
+            fcns.append(fcn)
+        except Exception as e:
+            logger.error(f"Skipping the data point as {e}")  
         i+=1
     return fcns
 
@@ -157,11 +154,8 @@ def generate_graphs(data, fcns):
     graphs = []
     while i < len(data):
         try:
-            if np.var(data) == 0:
-                logging.info(f"Skipping: Data has zero variance....{data}.")
-            else: 
-                NF = generate_node_features(data[i], dim)
-                graphs.append([fcns[i], NF, np.expand_dims(fcns[i], axis=-1)])
+            NF = generate_node_features(data[i], dim)
+            graphs.append([fcns[i], NF, np.expand_dims(fcns[i], axis=-1)])
         except Exception as e:
                 logger.error(f"Skipping the data point as {e}")  
         i += 1
@@ -175,7 +169,10 @@ def generate_segements(data):
     while i < num:
         if num - i > ws:
             curr_win = data[:, i:i+256]
-        segments.append(curr_win)
+        if np.var(curr_win) == 0:
+            logging.info(f"Skipping: Data has zero variance....{curr_win}.")
+        else :
+            segments.append(curr_win)
         i += step
     
     return segments
