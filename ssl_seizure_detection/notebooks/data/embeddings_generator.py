@@ -11,6 +11,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 from preprocess import new_grs, create_tensordata_new, convert_to_Data, pseudo_data, convert_to_PairData, convert_to_TripletData
 
+import logging
+
+# Set up a global logger
+logger = logging.getLogger("GraphGeneration")
+logger.setLevel(logging.INFO)
+
+# File handler
+file_handler = logging.FileHandler("/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/run_logs/graph_generation.log")
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+
+# Add handler to logger
+logger.addHandler(file_handler)
 
 freq = 256
 ws = int(1*freq)
@@ -85,17 +98,23 @@ def generate_fcns(data, dim):
     fcns = []
     i = 0
     while i < len(data):
-        fcn = []
-        # all ones
-        fcn.append(np.ones((dim, dim)))
-        # correlation
-        fcn.append(np.corrcoef(data[i]))
-        # coherence
-        fcn.append(generate_coh_array(data[i]))       
-        # PLV
-        fcn.append(generate_coh_array(data[i]))
+        if np.var(data) == 0:
+            logging.info(f"Skipping: Data has zero variance....{data}.")
+        else: 
+            try:
+                fcn = []
+                # all ones
+                fcn.append(np.ones((dim, dim)))
+                # correlation
+                fcn.append(np.corrcoef(data[i]))
+                # coherence
+                fcn.append(generate_coh_array(data[i]))       
+                # PLV
+                fcn.append(generate_plv_array(data[i]))
 
-        fcns.append(fcn)
+                fcns.append(fcn)
+            except Exception as e:
+                logger.error(f"Skipping the data point as {e}")  
         i+=1
     return fcns
 
@@ -131,14 +150,20 @@ def get_data_matrices(data_path, label_path):
             ictal_list.append(data[:, start:end])
     preictal_mat = np.hstack(preitcal_list)
     ictal_mat = np.hstack(ictal_list)
-    return preictal_mat, ictal_mat
+    return preictal_mat[:, :1000], ictal_mat[:, :1000]
 
 def generate_graphs(data, fcns):
     i = 0
     graphs = []
     while i < len(data):
-        NF = generate_node_features(data[i], dim)
-        graphs.append([fcns[i], NF, np.expand_dims(fcns[i], axis=-1)])
+        try:
+            if np.var(data) == 0:
+                logging.info(f"Skipping: Data has zero variance....{data}.")
+            else: 
+                NF = generate_node_features(data[i], dim)
+                graphs.append([fcns[i], NF, np.expand_dims(fcns[i], axis=-1)])
+        except Exception as e:
+                logger.error(f"Skipping the data point as {e}")  
         i += 1
     return graphs
 
@@ -174,8 +199,8 @@ def split_graphs(data, train_ratio, test_ratio):
 def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
-def generate_embeddings_util(preictal_data, ictal_data, index):
-    base_path = "/home/desktop/Desktop/22104412_Docs/MiceEpilepsy/Anamolies/epilepsy_detection_akshat/ssl_seizure_detection/notebooks/data/supervised/"
+def generate_embeddings_util(preictal_data, ictal_data, index, data_log):
+    base_path = data_log
     file_path_preictal = f"{base_path}preictal_{index}.pkl"
     file_path_ictal = f"{base_path}ictal_{index}.pkl"
 
@@ -200,12 +225,12 @@ def generate_embeddings_util(preictal_data, ictal_data, index):
 
     pyg_grs = get_pyg_grs(num_electrodes,new_data)
 
-    pyg_Data_path = f"/home/desktop/Desktop/22104412_Docs/MiceEpilepsy/Anamolies/epilepsy_detection_akshat/ssl_seizure_detection/notebooks/data/patient_gr/jh101_pyg_Data_{index}.pt"
+    pyg_Data_path = f"{data_log}/jh101_pyg_Data_{index}.pt"
 
     convert_to_Data(pyg_grs, save=True, logdir=pyg_Data_path)
 
 
-def generate_embeddings(data_path,label_path,index):
+def generate_embeddings(data_path,label_path,index,data_log):
     print("generating matrices...")
     preictal_mat, ictal_mat = get_data_matrices(data_path, label_path)
     print(preictal_mat.shape)
@@ -224,7 +249,7 @@ def generate_embeddings(data_path,label_path,index):
     ictal_graphs = generate_graphs(ictal_segments, ictal_fcns)
 
     print("generating train embeddings...")
-    generate_embeddings_util(preictal_graphs, ictal_graphs, index)
+    generate_embeddings_util(preictal_graphs, ictal_graphs, index, data_log)
 
 # if __name__ == "__main__":
 #     generate_embeddings(sys.argv[1], sys.argv[2], sys.argv[3])

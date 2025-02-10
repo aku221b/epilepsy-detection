@@ -10,7 +10,7 @@ sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/config"))
 from train import train
 from config import TrainConfig
 label_base_path = str(PROJECT_ROOT / "parsed_labels")
-def generate_all_embeddings(total_particpants, data_base_path,label_base_path):
+def generate_all_embeddings(total_particpants, data_base_path,label_base_path, data_log):
     if total_particpants >= 4:
         total_particpants += 1
     for index in range(total_particpants):
@@ -21,7 +21,7 @@ def generate_all_embeddings(total_particpants, data_base_path,label_base_path):
         data_path = f"{data_base_path}/{p_name}"
         label_path = f"{label_base_path}/{p_name}_labels.csv"
 
-        generate_embeddings(data_path,label_path,index)
+        generate_embeddings(data_path,label_path,index, data_log)
 
 def LOO_training(data_path, logdir, index):
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--total_participants", type=int, help ="number of participants data to train on", required=True)
 
     args = parser.parse_args()
-    generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path)
+    generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log)
 
     for i in range(args.total_participants):
         LOO_training(args.data_log,args.stat_log,i)
