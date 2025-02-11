@@ -25,6 +25,7 @@ file_handler.setFormatter(formatter)
 # Add handler to logger
 logger.addHandler(file_handler)
 
+# hyper parameters 
 freq = 256
 ws = int(1*freq)
 step = int(0.125*256)
@@ -132,8 +133,8 @@ def get_data_matrices(data_path, label_path):
     for index, row in df.iterrows():
         file_name = row['File_names']
         label = row['Labels']
-        start = row['Start_time']*256
-        end = row['End_time']*256
+        start = row['Start_time']*freq
+        end = row['End_time']*freq
         file_path = f"{data_path}/{file_name}"
         raw = mne.io.read_raw_edf(file_path)
         data, times = raw[:]
@@ -147,7 +148,7 @@ def get_data_matrices(data_path, label_path):
             ictal_list.append(data[:, start:end])
     preictal_mat = np.hstack(preitcal_list)
     ictal_mat = np.hstack(ictal_list)
-    return preictal_mat, ictal_mat
+    return preictal_mat[:, :1000], ictal_mat[:, :1000]
 
 def generate_graphs(data, fcns):
     i = 0
@@ -168,7 +169,7 @@ def generate_segements(data):
     segments = []
     while i < num:
         if num - i > ws:
-            curr_win = data[:, i:i+256]
+            curr_win = data[:, i:i+ws]
         if np.var(curr_win) == 0:
             logging.info(f"Skipping: Data has zero variance....{curr_win}.")
         else :
@@ -197,24 +198,8 @@ def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
 def generate_embeddings_util(preictal_data, ictal_data, index, data_log):
-    base_path = data_log
-    file_path_preictal = f"{base_path}preictal_{index}.pkl"
-    file_path_ictal = f"{base_path}ictal_{index}.pkl"
-
-    with open(file_path_preictal,'wb') as file:
-        pickle.dump(preictal_data, file)
-
-    with open(file_path_ictal,'wb') as file:
-        pickle.dump(ictal_data, file)
-
-    with open(file_path_preictal, 'rb') as f:
-        data_preictal= pickle.load(f)
-    
-    with open(file_path_ictal, 'rb') as f:
-        data_ictal = pickle.load(f)
-
-    data_preictal = new_grs(data_preictal, type="preictal")
-    data_ictal = new_grs(data_ictal, type="ictal")
+    data_preictal = new_grs(preictal_data, type="preictal")
+    data_ictal = new_grs(ictal_data, type="ictal")
 
     new_data = data_preictal + data_ictal
 
