@@ -10,6 +10,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3] 
 sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 from preprocess import new_grs, create_tensordata_new, convert_to_Data, pseudo_data, convert_to_PairData, convert_to_TripletData
+import os
 
 import logging
 
@@ -30,6 +31,7 @@ freq = 256
 ws = int(1*freq)
 step = int(0.125*256)
 dim = channels_to_take = 22
+data_theshold = 100000
 
 def get_band_energies(data, dim):
     freq_bands = {
@@ -127,27 +129,7 @@ def generate_node_features(data, dim):
     return features
 
 def get_data_matrices(data_path, label_path):
-    df = pd.read_csv(label_path)
-    preitcal_list = []
-    ictal_list = []
-    for index, row in df.iterrows():
-        file_name = row['File_names']
-        label = row['Labels']
-        start = row['Start_time']*freq
-        end = row['End_time']*freq
-        file_path = f"{data_path}/{file_name}"
-        raw = mne.io.read_raw_edf(file_path)
-        data, times = raw[:]
-        data = data[:channels_to_take,:]
-        if label == 0: 
-            preitcal_list.append(data)
-        else:
-            preitcal_list.append(data[:, 0:start])
-            if end < len(data)-1:
-                preitcal_list.append(data[:, end+1:len(data)])
-            ictal_list.append(data[:, start:end])
-    preictal_mat = np.hstack(preitcal_list)
-    ictal_mat = np.hstack(ictal_list)
+    
     return preictal_mat, ictal_mat
 
 def generate_graphs(data, fcns):
@@ -197,45 +179,119 @@ def split_graphs(data, train_ratio, test_ratio):
 def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
-def generate_embeddings_util(preictal_data, ictal_data, index, data_log):
-    data_preictal = new_grs(preictal_data, type="preictal")
-    data_ictal = new_grs(ictal_data, type="ictal")
+def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
 
-    new_data = data_preictal + data_ictal
+    if preictal_mat is not None:
+        logger.info(f"generating preictal segments for ...")
+        try:
+            preictal_segments = generate_segements(preictal_mat)
+        except Exception as e:
+            logger.error(f"error in generating preictal segments:- {e}")
+            sys.exit(1)
+        logger.info(f"generating preictal fcns for {data_log_dir}/{file_index}...")
+        try:
+            precital_fcns = generate_fcns(preictal_segments, dim)
+        except Exception as e: 
+            logger.error(f"error in generating preictal fcns:- {e}")
+            sys.exit(1)
+        logger.info(f"generating preictal graphs for {data_log_dir}/{file_index}...")
+        try:  
+            preictal_graphs = generate_graphs(preictal_segments, precital_fcns)
+        except Exception as e:
+            logger.error(f"error in generating preictal graphs:- {e}")
+            sys.exit(1)
+        logger.info("generating preictal train embeddings...")
+        try:
+            data_preictal = new_grs(preictal_graphs, type="preictal")
+        except Exception as e:
+            logger.info(f"error generating graphs for pretical data:- {e}")
+            sys.exit(e)
+        
+    if ictal_mat is not None:
+        logger.info(f"generating ictal segments for {data_log_dir}/{file_index}...")
+        try: 
+            ictal_segments = generate_segements(ictal_mat)
+        except Exception as e: 
+            logger.error(f"error in generating ictal segments :- {e}")
+            sys.exit(1)
+        logger.info(f"generating ictal fcns for {data_log_dir}/{file_index}...")
+        try:
+            ictal_fcns = generate_fcns(ictal_segments, dim)
+        except Exception as e: 
+            logger.error(f"error in generating ictal fcns :- {e}")
+            sys.exit(1)
+        logger.info("generating ictal graphs...")
+        try:
+            ictal_graphs = generate_graphs(ictal_segments, ictal_fcns)
+        except Exception as e:
+            logger.error(f"error in generating ictal graphs:- {e}")
+            sys.exit(1)
+        logger.info("generating ictal train embeddings...")
+        try:
+            data_ictal = new_grs(ictal_graphs, type="ictal")
+        except Exception as e:
+            logger.info(f"error generating graphs for ictal data:- {e}")
+            sys.exit(e)
+
+    if preictal_mat is not None and ictal_mat is not None:
+        logger.info("appending graphs for ictal and preictal data...")
+        try:
+            new_data = data_preictal + data_ictal
+        except Exception as e:
+            logger.info(f"error appending graphs for ictal and preictal data {e}")
+            sys.exit(e)
+    else: 
+        try:
+            new_data = data_preictal
+        except Exception as e:
+            logger.info(f"error appending graphs for ictal and preictal data {e}")
+            sys.exit(e)
 
     num_electrodes = new_data[0][0][0].shape[0]
 
-    pyg_grs = get_pyg_grs(num_electrodes,new_data)
+    logger.info("generating pyg format graphs...")
+    try: 
+        pyg_grs = get_pyg_grs(num_electrodes,new_data)
+    except Exception as e:
+        logger.info(f"error generating pyg format graphs {e}")
 
-    pyg_Data_path = f"{data_log}/jh101_pyg_Data_{index}.pt"
+    pyg_Data_path = f"{data_log_dir}/jh101_pyg_Data_{file_index}.pt"
 
-    convert_to_Data(pyg_grs, save=True, logdir=pyg_Data_path)
-
-
+    convert_to_Data(pyg_grs, logger, save=True, logdir=pyg_Data_path)
+  
 def generate_embeddings(data_path,label_path,index,data_log):
-    print("generating matrices...")
-    preictal_mat, ictal_mat = get_data_matrices(data_path, label_path)
-    print(preictal_mat.shape)
-    print(ictal_mat.shape)
+    logger.info("generating matrices...")
 
-    print("generating segments...")
-    preictal_segments = generate_segements(preictal_mat)
-    ictal_segments = generate_segements(ictal_mat)
+    df = pd.read_csv(label_path)
+    file_index = 0
+    data_log_dir = f"{data_log}/chb{index}"
+    if not os.path.exists(data_log_dir):
+        os.makedirs(data_log_dir)
+    for index, row in df.iterrows():
+        file_name = row['File_names']
+        label = row['Labels']
+        start = row['Start_time']*freq
+        end = row['End_time']*freq
+        file_path = f"{data_path}/{file_name}"
+        try:
+            raw = mne.io.read_raw_edf(file_path)
+        except Exception as e:
+            logger.error(f"Error reading .edf file at {file_path}")
+        data, times = raw[:]
+        data = data[:channels_to_take,:]
+        if label == 0: 
+            preictal_list = data
+            generate_embeddings_util(data_log_dir,data,None,file_index)
+        else:
+            preictal_list = []
+            preictal_list.append(data[:, 0:start])
+            if end < len(data)-1:
+                preictal_list.append(data[:, end+1:len(data)])
+            ictal_list = data[:, start:end]
+            generate_embeddings_util(data_log_dir, np.hstack(preictal_list),ictal_list,file_index)
+        file_index += 1
 
-    print("generating fcns...")
-    ictal_fcns = generate_fcns(ictal_segments, dim)
-    precital_fcns = generate_fcns(preictal_segments, dim)
-
-    print("generating graphs...")
-    preictal_graphs = generate_graphs(preictal_segments, precital_fcns)
-    ictal_graphs = generate_graphs(ictal_segments, ictal_fcns)
-
-    print("generating train embeddings...")
-    generate_embeddings_util(preictal_graphs, ictal_graphs, index, data_log)
-
-# if __name__ == "__main__":
-#     generate_embeddings(sys.argv[1], sys.argv[2], sys.argv[3])
-
+   
 
     
 

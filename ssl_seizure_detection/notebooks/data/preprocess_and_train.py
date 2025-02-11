@@ -78,8 +78,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log)
 
-    for i in range(args.total_participants):
-        LOO_training(args.data_log,args.stat_log,i)
+    # for i in range(args.total_participants):
+    #     LOO_training(args.data_log,args.stat_log,i)
 
     
 

@@ -8,6 +8,7 @@ from torch_geometric.data import Data
 from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
+import sys
 
 
 
@@ -575,7 +576,7 @@ def pseudo_data(data, tau_pos=12 // 0.12, tau_neg=(9 * 60) // 0.12, stats=True, 
     
 
         
-def convert_to_Data(data_list, save = True, logdir = None):
+def convert_to_Data(data_list, logger, save = True, logdir = None, ):
     """
     Converts a list of data entries of the form [[edge_index, x, edge_attr], y] to list of PyG Data objects.
     
@@ -593,11 +594,20 @@ def convert_to_Data(data_list, save = True, logdir = None):
     for entry in data_list:
         graph, y = entry
         edge_index, x, edge_attr = graph
-        data = Data(x = x, edge_index = edge_index, edge_attr = edge_attr, y = y)
+        try: 
+            data = Data(x = x, edge_index = edge_index, edge_attr = edge_attr, y = y)
+        except Exception as e:
+            logger.error(f"Error generating graphs for data {data} {e}")
+            continue
         Data_list.append(data)
 
     if save:
-        torch.save(Data_list, logdir)
+        logger.info("saving data list..")
+        try:   
+            torch.save(Data_list, logdir)
+        except Exception as e:
+            logger.error(f"error saving data list..{e}")
+            sys.exit(1)
     
     return Data_list
 
