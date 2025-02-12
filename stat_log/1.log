@@ -1,0 +1,168 @@
+2025-02-12 14:51:52,095 - INFO - Testing on 2th participant....
+2025-02-12 14:51:52,095 - INFO - loading train and test data...
+2025-02-12 14:57:46,379 - INFO - initializing device...
+2025-02-12 14:57:46,379 - INFO - initializing loaders...
+2025-02-12 14:57:47,595 - INFO - initializing model...
+2025-02-12 14:57:47,617 - INFO - initializing optimiser...
+2025-02-12 14:57:47,617 - INFO - initializing learning rate scheduler...
+2025-02-12 14:57:47,617 - INFO - initializing loss criterion...
+2025-02-12 15:03:41,697 - INFO - Epoch: 1, Train Loss: 0.015863790790711114, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.01114565413061974, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:09:51,659 - INFO - Epoch: 2, Train Loss: 0.0224645344191189, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.013471352955931989, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:15:25,581 - INFO - Epoch: 3, Train Loss: 0.022517974355837182, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.01328424494943501, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:20:41,011 - INFO - Epoch: 4, Train Loss: 0.02248758767765948, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.013045931990745135, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:27:56,203 - INFO - Epoch: 5, Train Loss: 0.022474566706746312, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012994299160600199, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:33:19,359 - INFO - Epoch: 6, Train Loss: 0.022467899041116745, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012927846604413947, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:38:33,132 - INFO - Epoch: 7, Train Loss: 0.022460736692533453, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.01284771039162153, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:44:44,032 - INFO - Epoch: 8, Train Loss: 0.022452723458828632, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012754894382178538, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:50:00,713 - INFO - Epoch: 9, Train Loss: 0.022443745816564747, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012649298204806607, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 15:55:15,929 - INFO - Epoch: 10, Train Loss: 0.022432925627697244, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012539579642652975, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:01:29,314 - INFO - Epoch: 11, Train Loss: 0.022423586163434737, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012455692163710732, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:06:50,413 - INFO - Epoch: 12, Train Loss: 0.022413570489170108, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012404530774418708, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:13:12,130 - INFO - Epoch: 13, Train Loss: 0.02240371106163697, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012179782655504014, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:18:53,104 - INFO - Epoch: 14, Train Loss: 0.02239324289329779, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.012056817733701855, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:24:16,017 - INFO - Epoch: 15, Train Loss: 0.022385378739010458, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011964001871430825, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:30:59,475 - INFO - Epoch: 16, Train Loss: 0.022376637625246044, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011860883334046038, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:36:23,334 - INFO - Epoch: 17, Train Loss: 0.022370560341178406, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011799073072127355, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:41:46,355 - INFO - Epoch: 18, Train Loss: 0.022364323416087118, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011682670400957022, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:48:19,420 - INFO - Epoch: 19, Train Loss: 0.022358254075082473, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011638149557780827, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
+2025-02-12 16:53:52,600 - INFO - Epoch: 20, Train Loss: 0.022355538520905348, 
+              Train Accuracy: 99.66919510378817, Train F1: 0.0, 
+              Train Precision: 0.0 Train Recall: 0.0 
+              Train 0s count: 1068908 Train 1s count: 0 
+              Validation Loss: 0.011626298388335931, Validation Accuracy: 99.86625299403605 
+              Validation F1: 0.0, Validation Precision: 0.0 
+              Validation Recall: 0.0 
+              Validation 0s count: 311035 Validation 1s count: 0
