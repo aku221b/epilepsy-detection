@@ -737,12 +737,15 @@ def run_sorter(logdir,leave_index, run_type="all"):
         all_train_runs = []
         test_runs = []
         index = 0
-        for run in os.listdir(logdir):
-            if not run.endswith("_combined.pt"):
-                if index == leave_index:
-                    test_runs.append(torch.load(os.path.join(logdir, run), weights_only=False))
-                else:
-                    all_train_runs.append(torch.load(os.path.join(logdir, run), weights_only=False))
+        directories = sorted([d for d in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, d))])
+        for dir in directories:
+            dir_path = os.path.join(logdir, dir)
+            for run in os.listdir(dir_path):
+                if not run.endswith("_combined.pt"):
+                    if index == leave_index:
+                        test_runs.append(torch.load(os.path.join(dir_path, run), weights_only=False))
+                    else:
+                        all_train_runs.append(torch.load(os.path.join(dir_path, run), weights_only=False))
             index += 1
         return all_train_runs,test_runs
     else:

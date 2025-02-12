@@ -76,29 +76,60 @@ def train(config, model_config, loss_config, leave_index, logdir):
     
     # Load data
     # data = load_data(config)
-    train_data, test_data=load_data(config, leave_index)
+    logger.info(f"loading train and test data...")
+    try: 
+        train_data, test_data=load_data(config, leave_index)
+    except Exception as e:
+        logger.error(f"failed loading data :- {e}")
+
 
     # print(data)
     # print(train_data)
     # print(test_data)
     
     # Initialize device
-    device = initialize_device()
+    logger.info(f"initializing device...")
+    try:
+        device = initialize_device()
+    except Exception as e:
+        logger.error(f"Failed loading data :- {e}")
     
     # Initialize loaders
-    train_loader, val_loader, test_loader, loader_stats = initialize_loaders(train_data,test_data,config)
+    logger.info(f"initializing loaders...")
+    try:
+        train_loader, val_loader, test_loader, loader_stats = initialize_loaders(train_data,test_data,config)
+    except Exception as e:
+        logger.error(f"Failed initializing loaders :- {e}")
+    
     
     # Initialize model
-    model = initialize_model(config, model_config, device)
+    logger.info(f"initializing model...")
+    try: 
+        model = initialize_model(config, model_config, device)
+    except Exception as e:
+        logger.error(f"Failed initializing model :- {e}")
+
         
     # Initialize optimizer
-    optimizer = initialize_optimizer(model, config)
+    logger.info(f"initializing optimiser...")
+    try: 
+        optimizer = initialize_optimizer(model, config)
+    except Exception as e:
+        logger.error(f"Failed initializing optimiser... :- {e}")
         
     # Initialize learning rate scheduler
-    scheduler = CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=config.eta_min)
+    logger.info(f"initializing learning rate scheduler...")
+    try:
+        scheduler = CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=config.eta_min)
+    except Exception as e:
+        logger.error(f"Failed learning rate scheduler...:- {e}")
 
     # Initialize loss based on classification method and head
-    criterion = initialize_criterion(config, loss_config)
+    logger.info(f"initializing loss criterion...")
+    try:
+        criterion = initialize_criterion(config, loss_config)
+    except Exception as e:
+        logger.error(f"Failed loss criterion..:- {e}")
     
     # Early stopping variables
     best_val_loss = float('inf')

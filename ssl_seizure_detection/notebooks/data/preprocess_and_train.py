@@ -76,10 +76,10 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--total_participants", type=int, help ="number of participants data to train on", required=True)
 
     args = parser.parse_args()
-    generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log)
+    # generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log)
 
-    # for i in range(args.total_participants):
-    #     LOO_training(args.data_log,args.stat_log,i)
+    for i in range(args.total_participants):
+        LOO_training(args.data_log,args.stat_log,i)
 
     
 
