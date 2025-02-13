@@ -16,6 +16,9 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from preprocess import run_sorter, combiner, create_data_loaders, extract_layers
 from models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
 from sklearn.metrics import f1_score, recall_score, precision_score
+import matplotlib.pyplot as plt
+
+
 
 
 
@@ -94,10 +97,13 @@ def get_labels(batch, classify=None, model_id=None):
     return labels
 
 
-def get_loss(model_id, outputs, labels, criterion, device):
+def get_loss(model_id, outputs, labels, criterion, device, all_ones, all_zeroes):
     if model_id=="VICRegT1":
         loss = criterion(outputs[0].to(device), outputs[1].to(device), labels.to(device))
     else:
+        outputs_arr = outputs.detach().numpy()
+        all_ones.extend([outputs_arr[i] for i, label in enumerate(labels) if label == 1])
+        all_zeroes.extend([outputs_arr[i] for i, label in enumerate(labels) if label == 0])
         loss = criterion(outputs.to(device), labels.to(device))
     
     return loss
@@ -133,8 +139,16 @@ def calculate_metrics(epoch_train_loss, correct_train, total_train, predictions_
     else:
         return avg_loss, None
     
+def plot(arr, logdir, mode, leave_index,epoch, type):
+    plt.clf()
+    plt.plot(arr , marker='o', linestyle='-', color="r")
 
-def process_model(config, model, loader, criterion, device, mode="training", optimizer=None):
+    # Add labels and title
+    plt.xlabel("Index")
+    plt.ylabel("Value")
+    # Show the plot
+    plt.savefig(os.path.join(logdir,f"plot_{mode}_{leave_index}_{epoch}_{type}.png"), dpi=300) 
+def process_model(config, model, loader, criterion, device,logdir,leave_index,epoch, mode="training", optimizer=None):
     """
     Function to process the model, either in training or evaluation mode.
 
@@ -164,13 +178,14 @@ def process_model(config, model, loader, criterion, device, mode="training", opt
     epoch_loss, correct, total,predictions_arr,labels_arr = 0, 0, 0, [], []
     if config.timing:
         start_time = time.time()
-
+    all_ones = []
+    all_zeroes = []
     for batch_idx, batch in enumerate(loader):
         batch = batch.to(device)
         with torch.set_grad_enabled(mode == "training"):
             outputs = forward_pass(model, batch, config.model_id, config.classify, config.head)
             labels = get_labels(batch, config.classify, config.model_id)
-            loss = get_loss(config.model_id, outputs, labels, criterion, device)
+            loss = get_loss(config.model_id, outputs, labels, criterion, device, all_ones,all_zeroes)
             epoch_loss += loss.item()
 
             if mode == "training":
@@ -187,6 +202,8 @@ def process_model(config, model, loader, criterion, device, mode="training", opt
 
         if config.timing and batch_idx % 100 == 0:
             start_time = update_time(start_time, mode=mode)
+    plot(all_ones, logdir, mode, leave_index,epoch, "true_ones")
+    plot(all_zeroes, logdir, mode, leave_index,epoch, "true_zeroes")
     predictions_arr = torch.tensor(predictions_arr, device=device)
     labels_arr = torch.tensor(labels_arr, device=device)    
     pred_zero = torch.sum(predictions_arr == 0).item()

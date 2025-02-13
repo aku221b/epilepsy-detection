@@ -145,10 +145,10 @@ def train(config, model_config, loss_config, leave_index, logdir):
     for epoch in range(config.epochs):
 
         #<----------Training---------->
-        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_loader, criterion, device, "training", optimizer)
+        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_loader, criterion, device, logdir,leave_index,epoch,"training", optimizer)
 
         #<----------Validation---------->
-        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, val_loader, criterion, device, "evaluation", optimizer)
+        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, val_loader, criterion, device,logdir,leave_index, epoch,"evaluation",  optimizer)
         print(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 
               Train Accuracy: {epoch_train_acc}, Train F1: {epoch_train_f1}, 
               Train Precision: {epoch_train_precision} Train Recall: {epoch_train_recall} 
