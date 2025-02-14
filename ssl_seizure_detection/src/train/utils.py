@@ -101,7 +101,7 @@ def get_loss(model_id, outputs, labels, criterion, device, all_ones, all_zeroes)
     if model_id=="VICRegT1":
         loss = criterion(outputs[0].to(device), outputs[1].to(device), labels.to(device))
     else:
-        outputs_arr = outputs.detach().numpy()
+        outputs_arr = outputs.detach().cpu().numpy()
         all_ones.extend([outputs_arr[i] for i, label in enumerate(labels) if label == 1])
         all_zeroes.extend([outputs_arr[i] for i, label in enumerate(labels) if label == 0])
         loss = criterion(outputs.to(device), labels.to(device))
