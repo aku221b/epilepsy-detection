@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from preprocess import run_sorter, combiner, create_data_loaders, extract_layers
 from models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
-from sklearn.metrics import f1_score, recall_score, precision_score
+from sklearn.metrics import f1_score, recall_score, precision_score, roc_auc_score
 import matplotlib.pyplot as plt
 
 
@@ -132,10 +132,11 @@ def calculate_metrics(epoch_train_loss, correct_train, total_train, predictions_
     f1 = f1_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     precision = precision_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     recall = recall_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
+    auc_score = roc_auc_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     
     if model_id != "VICRegT1":
         accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
-        return avg_loss, accuracy,f1, precision, recall
+        return avg_loss, accuracy,f1, precision, recall, auc_score
     else:
         return avg_loss, None
     
@@ -211,8 +212,8 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
     labels_arr = torch.tensor(labels_arr, device=device)    
     pred_zero = torch.sum(predictions_arr == 0).item()
     pred_ones = torch.sum(predictions_arr == 1).item()
-    avg_loss, accuracy,f1, precision, recall = calculate_metrics(epoch_loss, correct, total, predictions_arr,labels_arr,loader, config.model_id)
-    return avg_loss, accuracy,f1, precision, recall, pred_zero, pred_ones
+    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss, correct, total, predictions_arr,labels_arr,loader, config.model_id)
+    return avg_loss, accuracy,f1, precision, recall,auc_score, pred_zero, pred_ones
 
 
 
