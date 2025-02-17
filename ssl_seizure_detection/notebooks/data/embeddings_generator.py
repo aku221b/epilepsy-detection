@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import mne
 from mne_connectivity import spectral_connectivity_epochs
-from scipy.signal import welch,detrend
+from scipy.signal import welch,detrend,coherence
 import pickle
 import sys
 from pathlib import Path    
@@ -11,8 +11,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 from preprocess import new_grs, create_tensordata_new, convert_to_Data, pseudo_data, convert_to_PairData, convert_to_TripletData
 import os
-
+import random
 import logging
+import matplotlib.pyplot as plt
 
 # Set up a global logger
 logger = logging.getLogger("GraphGeneration")
@@ -41,8 +42,8 @@ def get_band_energies(data, dim):
         "Beta": (13, 30),
         "Gamma1": (30, 70),
         "Gamma2": (70, 100),
-        "Gamma3": (30, 70),
-        "Gamma4": (70, 100),
+        "Gamma3": (100, 120),
+        "Gamma4": (120, 128),
     }
     data = np.nan_to_num(data)  # Replace NaN/Inf with finite numbers
     if np.var(data) == 0:
@@ -57,10 +58,60 @@ def get_band_energies(data, dim):
         band_energy_matrix[:, i] = np.sum(psd[:, band_mask], axis=1)
 
     return band_energy_matrix
+def get_stats_2(fcn, feature):
+    logger.info(f"{feature} stats {pd.Series(fcn.flatten()).describe()}")
+
+def compute_coherence_matrix(segment):
+    sfreq = freq
+    fmin=1
+    fmax=128
+    nperseg=128
+    """
+    Computes the spectral coherence matrix for an EEG segment.
+    
+    Parameters:
+    - segment: np.ndarray of shape (n_channels, n_times)
+    - sfreq: Sampling frequency (Hz)
+    - fmin, fmax: Frequency range for coherence
+    - nperseg: Number of samples per FFT segment
+
+    Returns:
+    - coherence_matrix: np.ndarray of shape (n_channels, n_channels)
+    """
+    # get_segement_stats(segment)
+    n_channels = segment.shape[0]
+    coherence_matrix = np.zeros((n_channels, n_channels))
+    # plt.plot(segment[0], label=f'Channel {0}')
+    # plt.show()
+    # plt.plot(segment[1], label=f'Channel {3}')
+    # plt.show()
+    # f, coh = coherence(segment[0], segment[1], fs=freq, nperseg=128)  # Example for first two channels
+
+    # # Plot the coherence spectrum
+    # plt.plot(f, coh)
+    # plt.xlabel('Frequency (Hz)')
+    # plt.ylabel('Coherence')
+    # plt.title('Coherence between Channel 0 and Channel 1')
+    # plt.show()
+    # Compute coherence for each pair of channels
+    for i in range(n_channels):
+        for j in range(i + 1, n_channels):  # Avoid duplicate computations
+            f, coh = coherence(segment[i], segment[j], fs=sfreq, nperseg=nperseg)
+            
+            # Select coherence values only within the specified frequency range
+            freq_mask = (f >= fmin) & (f <= fmax)
+            mean_coh = np.mean(coh[freq_mask])  # Average coherence over selected frequencies
+            
+            coherence_matrix[i, j] = mean_coh
+            coherence_matrix[j, i] = mean_coh  # Ensure symmetry
+
+    # get_stats_2(coherence_matrix, "connect")
+    return coherence_matrix
 def generate_coh_array(segment):
+   
     n_channels = segment.shape[0]
     n_times = segment.shape[1]
-    segment = np.nan_to_num(segment)
+    # segment = np.nan_to_num(segment)
     segment = np.array(segment)
 
     # Create artificial epochs (e.g., splitting into 4 sub-epochs)
@@ -71,15 +122,20 @@ def generate_coh_array(segment):
         method='coh',
         mode='fourier',
         fmin=5,
-        fmax=100,                           # Use FFT for spectral estimation
+        fmax=30,                           # Use FFT for spectral estimation
         sfreq=freq,
         tmin=0,                  # Start coherence computation from 1 second
         tmax=None,                 # Use until the end of the data
-        faverage=True,            # Do not average frequencies
+        faverage=False,            # Do not average frequencies
         verbose=False           # Print detailed logs
     )
+    # coh_raw = con.get_data()
+    # logger.info(f"NaN Count: {np.isnan(coh_raw).sum()}")
+    # logger.info(f"Inf Count: {np.isinf(coh_raw).sum()}")
+    
     coherence_matrix = con.get_data().reshape(dim, dim)
-    coherence_matrix = np.nan_to_num(coherence_matrix)
+    # get_stats_2(coherence_matrix, "connectivity")
+    # coherence_matrix = np.nan_to_num(coherence_matrix)
     return coherence_matrix
 
 def generate_plv_array(segment):
@@ -90,11 +146,16 @@ def generate_plv_array(segment):
     # Create artificial epochs (e.g., splitting into 4 sub-epochs)
     segments_split = segment.reshape(1  , n_channels, n_times)
     con = spectral_connectivity_epochs(
-        segments_split, method='plv', fmin=5,
-        fmax=100,  mode='multitaper', sfreq=freq,
-        faverage=True, tmin=0, tmax=None, verbose=False
+        segments_split, method='plv', fmin=8,
+        fmax=30,  mode='multitaper', sfreq=freq,
+        faverage=False, tmin=0, tmax=None, verbose=False
     )
+    # coh_raw = con.get_data()
+    # logger.info(f"NaN Count: {np.isnan(coh_raw).sum()}")
+    # logger.info(f"Inf Count: {np.isinf(coh_raw).sum()}")
+    get_stats_2(con.get_data(), "plv")
     plv_matrix = con.get_data().reshape(dim, dim)
+    # get_stats_2(plv_matrix, "plv")
     plv_matrix = np.nan_to_num(plv_matrix)
     return plv_matrix
 def generate_fcns(data, dim):
@@ -108,9 +169,9 @@ def generate_fcns(data, dim):
             # correlation
             fcn.append(np.corrcoef(data[i]))
             # coherence
-            fcn.append(generate_coh_array(data[i]))       
+            fcn.append(compute_coherence_matrix(data[i]))       
             # PLV
-            fcn.append(generate_plv_array(data[i]))
+            fcn.append(compute_coherence_matrix(data[i]))
 
             fcns.append(fcn)
         except Exception as e:
@@ -127,10 +188,6 @@ def generate_node_features(data, dim):
     # band energies
     features.append(get_band_energies(data,dim)) 
     return features
-
-def get_data_matrices(data_path, label_path):
-    
-    return preictal_mat, ictal_mat
 
 def generate_graphs(data, fcns):
     i = 0
@@ -179,6 +236,40 @@ def split_graphs(data, train_ratio, test_ratio):
 def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
+def get_stats(fcns):
+    feature_map = {
+        0: "ones",
+        1: "correlation",
+        2: "connectivity",
+        3: "phase lock val"
+    }
+    print("PLV == Connectivity:", np.all(fcns[0][2] == fcns[0][3]))
+    feature_matrices = [fcn[1].flatten() for fcn in fcns]  # Flatten each graph matrix
+    all_values = np.concatenate(feature_matrices)  # Combine all graphs into one array
+    
+    mean_value = np.mean(all_values)
+    std_value = np.std(all_values)
+    
+    logger.info(f"samples correlation mean is {mean_value} and variance value is {std_value}...\n")
+
+
+
+
+def get_segement_stats(segement):
+    # random_samples = random.sample(segements, 1000)
+    # for sample in random_samples:
+    logger.info(f"Segment Mean: {np.mean(segement)}")
+    logger.info(f"Segment Std:, {np.std(segement)}")
+    logger.info(f"Min:, {np.min(segement)}, Max:, {np.max(segement)}")
+    # Plot a few EEG channels
+    plt.figure(figsize=(10, 5))
+    for i in range(5):  # Plot 5 random channels
+        plt.plot(segement[i, :], label=f'Channel {i}')
+    plt.legend()
+    plt.title("Raw EEG Signals")
+    plt.show()
+    # break
+
 def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
 
     if preictal_mat is not None:
@@ -189,12 +280,18 @@ def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
             logger.error(f"error in generating preictal segments:- {e}")
             sys.exit(1)
         logger.info(f"generating preictal fcns for {data_log_dir}/{file_index}...")
+
+        # get_segement_stats(preictal_segments)
+
         try:
             precital_fcns = generate_fcns(preictal_segments, dim)
         except Exception as e: 
             logger.error(f"error in generating preictal fcns:- {e}")
             sys.exit(1)
         logger.info(f"generating preictal graphs for {data_log_dir}/{file_index}...")
+
+        # get_stats(precital_fcns)
+
         try:  
             preictal_graphs = generate_graphs(preictal_segments, precital_fcns)
         except Exception as e:
@@ -215,12 +312,15 @@ def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
             logger.error(f"error in generating ictal segments :- {e}")
             sys.exit(1)
         logger.info(f"generating ictal fcns for {data_log_dir}/{file_index}...")
+        # get_segement_stats(generate_segements)
         try:
             ictal_fcns = generate_fcns(ictal_segments, dim)
         except Exception as e: 
             logger.error(f"error in generating ictal fcns :- {e}")
             sys.exit(1)
         logger.info("generating ictal graphs...")
+
+        # get_stats(ictal_fcns)
         try:
             ictal_graphs = generate_graphs(ictal_segments, ictal_fcns)
         except Exception as e:
@@ -268,6 +368,7 @@ def generate_embeddings(data_path,label_path,index,data_log):
     if not os.path.exists(data_log_dir):
         os.makedirs(data_log_dir)
     for index, row in df.iterrows():
+        # if file_index == 3: break
         file_name = row['File_names']
         label = row['Labels']
         start = row['Start_time']*freq
