@@ -116,7 +116,7 @@ def get_predictions(classify, outputs, device):
         probabilities = torch.softmax(outputs, dim=1)
         predictions = torch.argmax(probabilities, dim=1)
     
-    return predictions
+    return predictions,probabilities
 
 
 def update_time(start_time, mode="training"):
@@ -126,13 +126,13 @@ def update_time(start_time, mode="training"):
     return end_time
 
 
-def calculate_metrics(epoch_train_loss, correct_train, total_train, predictions_train, labels_train, train_loader, model_id):
+def calculate_metrics(epoch_train_loss, correct_train, total_train,probabilities_train, predictions_train, labels_train, train_loader, model_id):
 
     avg_loss = epoch_train_loss / len(train_loader)
     f1 = f1_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     precision = precision_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     recall = recall_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
-    auc_score = roc_auc_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
+    auc_score = roc_auc_score(labels_train.cpu().numpy(), probabilities_train.cpu().numpy())
     
     if model_id != "VICRegT1":
         accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
@@ -177,7 +177,7 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
     elif mode == "evaluation":
         model.eval()
     
-    epoch_loss, correct, total,predictions_arr,labels_arr = 0, 0, 0, [], []
+    epoch_loss, correct, total,predictions_arr,labels_arr, probabilities_arr = 0, 0, 0, [], [], []
     if config.timing:
         start_time = time.time()
     # all_ones = []
@@ -196,10 +196,11 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
                 optimizer.step()
 
             if config.classify:
-                predictions = get_predictions(config.classify, outputs, device)
+                predictions,probabilities = get_predictions(config.classify, outputs, device)
                 correct += (predictions == labels).sum().item()
                 total += labels.size(0)
                 predictions_arr.extend(predictions)
+                probabilities_arr.extend(probabilities)
                 labels_arr.extend(labels)
 
         if config.timing and batch_idx % 100 == 0:
@@ -209,10 +210,11 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
     # all_one_labels = len(all_ones)
     # all_zero_labels = len(all_zeroes)
     predictions_arr = torch.tensor(predictions_arr, device=device)
+    probabilities_arr = torch.tensor(probabilities_arr, device=device)
     labels_arr = torch.tensor(labels_arr, device=device)    
     pred_zero = torch.sum(predictions_arr == 0).item()
     pred_ones = torch.sum(predictions_arr == 1).item()
-    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss, correct, total, predictions_arr,labels_arr,loader, config.model_id)
+    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
     return avg_loss, accuracy,f1, precision, recall,auc_score, pred_zero, pred_ones
 
 
