@@ -29,10 +29,12 @@ logger.addHandler(file_handler)
 
 # hyper parameters 
 freq = 256
-ws = int(1*freq)
-step = int(0.125*256)
+ws = int(2*freq)
+step = int(0.125*ws)
 dim = channels_to_take = 22
 data_theshold = 100000
+n_subepochs = 4
+overlap = 0.5
 
 def get_band_energies(data, dim):
     freq_bands = {
@@ -108,54 +110,69 @@ def compute_coherence_matrix(segment):
     # get_stats_2(coherence_matrix, "connect")
     return coherence_matrix
 def generate_coh_array(segment):
-   
-    n_channels = segment.shape[0]
-    n_times = segment.shape[1]
     # segment = np.nan_to_num(segment)
     segment = np.array(segment)
-
     # Create artificial epochs (e.g., splitting into 4 sub-epochs)
-    segment_split = segment.reshape(1, n_channels, n_times)
+    window_size = 128
+    overlap = 64  # 50% overlap
+    step_size = window_size - overlap
+    segments = []
+
+    # Loop through each channel
+    for channel in segment:
+        channel_segments = []
+        for start in range(0, len(channel) - window_size + 1, step_size):
+            channel_segments.append(channel[start:start + window_size])
+        segments.append(np.array(channel_segments))
+
+    # Convert to numpy array for final shape
+    segments = np.array(segments)
     # Replace NaN/Inf with finite numbers
+    segments_transposed = np.transpose(segments, (1, 0, 2))
+    logger.info(f"segment shape: {segments.shape}")
     con = spectral_connectivity_epochs(
-        segment_split,
+        segments_transposed,
         method='coh',
-        mode='fourier',
-        fmin=5,
-        fmax=30,                           # Use FFT for spectral estimation
+        mode='multitaper',
+        fmin=20,
+        fmax=120,                           # Use FFT for spectral estimation
         sfreq=freq,
         tmin=0,                  # Start coherence computation from 1 second
         tmax=None,                 # Use until the end of the data
-        faverage=False,            # Do not average frequencies
+        faverage=True,            # Do not average frequencies
         verbose=False           # Print detailed logs
     )
-    # coh_raw = con.get_data()
-    # logger.info(f"NaN Count: {np.isnan(coh_raw).sum()}")
-    # logger.info(f"Inf Count: {np.isinf(coh_raw).sum()}")
     
     coherence_matrix = con.get_data().reshape(dim, dim)
-    # get_stats_2(coherence_matrix, "connectivity")
+    get_stats_2(coherence_matrix, "connectivity")
     # coherence_matrix = np.nan_to_num(coherence_matrix)
     return coherence_matrix
 
 def generate_plv_array(segment):
-    n_channels = segment.shape[0]
-    n_times = segment.shape[1]
-    segment = np.nan_to_num(segment)
-    segment= np.array(segment)
-    # Create artificial epochs (e.g., splitting into 4 sub-epochs)
-    segments_split = segment.reshape(1  , n_channels, n_times)
+    segment = np.array(segment)
+    window_size = 128
+    overlap = 64  # 50% overlap
+    step_size = window_size - overlap
+    segments = []
+
+    # Loop through each channel
+    for channel in segment:
+        channel_segments = []
+        for start in range(0, len(channel) - window_size + 1, step_size):
+            channel_segments.append(channel[start:start + window_size])
+        segments.append(np.array(channel_segments))
+
+    # Convert to numpy array for final shape
+    segments = np.array(segments)
+    segments_transposed = np.transpose(segments, (1, 0, 2))
+    # logger.info(segments.shape)
     con = spectral_connectivity_epochs(
-        segments_split, method='plv', fmin=8,
-        fmax=30,  mode='multitaper', sfreq=freq,
-        faverage=False, tmin=0, tmax=None, verbose=False
+        segments_transposed, method='plv', fmin=20,
+        fmax=120,  mode='multitaper', sfreq=freq,
+        faverage=True, tmin=0, tmax=None, verbose=False
     )
-    # coh_raw = con.get_data()
-    # logger.info(f"NaN Count: {np.isnan(coh_raw).sum()}")
-    # logger.info(f"Inf Count: {np.isinf(coh_raw).sum()}")
     get_stats_2(con.get_data(), "plv")
     plv_matrix = con.get_data().reshape(dim, dim)
-    # get_stats_2(plv_matrix, "plv")
     plv_matrix = np.nan_to_num(plv_matrix)
     return plv_matrix
 def generate_fcns(data, dim):
@@ -169,9 +186,9 @@ def generate_fcns(data, dim):
             # correlation
             fcn.append(np.corrcoef(data[i]))
             # coherence
-            fcn.append(compute_coherence_matrix(data[i]))       
+            fcn.append(generate_coh_array(data[i]))       
             # PLV
-            fcn.append(compute_coherence_matrix(data[i]))
+            fcn.append(generate_plv_array(data[i]))
 
             fcns.append(fcn)
         except Exception as e:
@@ -368,7 +385,6 @@ def generate_embeddings(data_path,label_path,index,data_log):
     if not os.path.exists(data_log_dir):
         os.makedirs(data_log_dir)
     for index, row in df.iterrows():
-        # if file_index == 3: break
         file_name = row['File_names']
         label = row['Labels']
         start = row['Start_time']*freq
