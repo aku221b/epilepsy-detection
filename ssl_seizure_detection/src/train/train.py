@@ -2,8 +2,9 @@
 import os
 import wandb
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from utils import *
 import logging
+
+from .utils import *
 
 
 def train(config, model_config, loss_config, leave_index, logdir):

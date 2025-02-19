@@ -3,24 +3,20 @@ import pandas as pd
 import numpy as np
 import mne
 from mne_connectivity import spectral_connectivity_epochs
-from scipy.signal import welch,detrend,coherence
-import pickle
+from scipy.signal import welch,coherence
 import sys
-from pathlib import Path    
-PROJECT_ROOT = Path(__file__).resolve().parents[3] 
-sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
-from preprocess import new_grs, create_tensordata_new, convert_to_Data, pseudo_data, convert_to_PairData, convert_to_TripletData
 import os
-import random
 import logging
 import matplotlib.pyplot as plt
+
+from .preprocess import new_grs, create_tensordata_new, convert_to_Data
 
 # Set up a global logger
 logger = logging.getLogger("GraphGeneration")
 logger.setLevel(logging.INFO)
 
 # File handler
-file_handler = logging.FileHandler(str(PROJECT_ROOT / "ssl_seizure_detection/run_logs/graph_generation.log"))
+file_handler = logging.FileHandler("./run_logs/graph_generation.log")
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 
@@ -35,8 +31,13 @@ dim = channels_to_take = 22
 data_theshold = 100000
 n_subepochs = 4
 overlap = 0.5
+# bipolar montages -- check the data
 
 def get_band_energies(data, dim):
+    # frequencies
+    # band pass the signal at 50 (notch filter)..
+    # normaliztion and standardization 
+    # reduce gamma to 50
     freq_bands = {
         "Delta": (1, 4),
         "Theta": (4, 8),
@@ -62,6 +63,11 @@ def get_band_energies(data, dim):
     return band_energy_matrix
 def get_stats_2(fcn, feature):
     logger.info(f"{feature} stats {pd.Series(fcn.flatten()).describe()}")
+
+# why use 3 metrics - analyse which metric is discriminating
+# GAF for EEG 
+# torch EEG 
+# use for band passing.
 
 def compute_coherence_matrix(segment):
     sfreq = freq
@@ -129,7 +135,7 @@ def generate_coh_array(segment):
     segments = np.array(segments)
     # Replace NaN/Inf with finite numbers
     segments_transposed = np.transpose(segments, (1, 0, 2))
-    logger.info(f"segment shape: {segments.shape}")
+    # logger.info(f"segment shape: {segments.shape}")
     con = spectral_connectivity_epochs(
         segments_transposed,
         method='coh',
@@ -144,7 +150,7 @@ def generate_coh_array(segment):
     )
     
     coherence_matrix = con.get_data().reshape(dim, dim)
-    get_stats_2(coherence_matrix, "connectivity")
+    # get_stats_2(coherence_matrix, "connectivity")
     # coherence_matrix = np.nan_to_num(coherence_matrix)
     return coherence_matrix
 
@@ -171,7 +177,7 @@ def generate_plv_array(segment):
         fmax=120,  mode='multitaper', sfreq=freq,
         faverage=True, tmin=0, tmax=None, verbose=False
     )
-    get_stats_2(con.get_data(), "plv")
+    # get_stats_2(con.get_data(), "plv")
     plv_matrix = con.get_data().reshape(dim, dim)
     plv_matrix = np.nan_to_num(plv_matrix)
     return plv_matrix
@@ -306,9 +312,9 @@ def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
             logger.error(f"error in generating preictal fcns:- {e}")
             sys.exit(1)
         logger.info(f"generating preictal graphs for {data_log_dir}/{file_index}...")
-
         # get_stats(precital_fcns)
 
+        # adjacency matrix
         try:  
             preictal_graphs = generate_graphs(preictal_segments, precital_fcns)
         except Exception as e:
@@ -382,8 +388,10 @@ def generate_embeddings(data_path,label_path,index,data_log):
     df = pd.read_csv(label_path)
     file_index = 0
     data_log_dir = f"{data_log}/chb{index}"
+
     if not os.path.exists(data_log_dir):
         os.makedirs(data_log_dir)
+
     for index, row in df.iterrows():
         file_name = row['File_names']
         label = row['Labels']

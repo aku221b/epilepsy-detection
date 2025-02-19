@@ -1,16 +1,14 @@
 #!/usr/bin/env python
-from embeddings_generator import generate_embeddings 
-import sys
+from .data.embeddings_generator import generate_embeddings 
+from .train.train import train
+from .config.config import TrainConfig
 import argparse
-from pathlib import Path    
-PROJECT_ROOT = Path(__file__).resolve().parents[3] 
-sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/train"))
-sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/config"))
+from pathlib import Path   
 
-from train import train
-from config import TrainConfig
+PROJECT_ROOT = Path(__file__).resolve().parents[2] 
 label_base_path = str(PROJECT_ROOT / "parsed_labels")
-participants_to_avoid = [3]
+participants_to_avoid = [0,3]
+
 def generate_all_embeddings(total_particpants, data_base_path,label_base_path, data_log):
     index = 0
     count = 0
@@ -23,7 +21,7 @@ def generate_all_embeddings(total_particpants, data_base_path,label_base_path, d
         data_path = f"{data_base_path}/{p_name}"
         label_path = f"{label_base_path}/{p_name}_labels.csv"
         count+=1
-
+        index+=1
         generate_embeddings(data_path,label_path,index_str, data_log)
 
 def LOO_training(data_path, logdir, index):
@@ -81,8 +79,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log)
 
-    # for i in range(args.total_participants):
-    #     LOO_training(args.data_log,args.stat_log,i)
+    for i in range(args.total_participants):
+        LOO_training(args.data_log,args.stat_log,i)
 
     
 
