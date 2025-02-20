@@ -8,20 +8,9 @@ import sys
 import os
 import logging
 import matplotlib.pyplot as plt
+import torch
 
 from .preprocess import new_grs, create_tensordata_new, convert_to_Data
-
-# Set up a global logger
-logger = logging.getLogger("GraphGeneration")
-logger.setLevel(logging.INFO)
-
-# File handler
-file_handler = logging.FileHandler("./run_logs/graph_generation.log")
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-
-# Add handler to logger
-logger.addHandler(file_handler)
 
 # hyper parameters 
 freq = 256
@@ -43,10 +32,7 @@ def get_band_energies(data, dim):
         "Theta": (4, 8),
         "Alpha": (8, 13),
         "Beta": (13, 30),
-        "Gamma1": (30, 70),
-        "Gamma2": (70, 100),
-        "Gamma3": (100, 120),
-        "Gamma4": (120, 128),
+        "Gamma1": (30, 45),
     }
     data = np.nan_to_num(data)  # Replace NaN/Inf with finite numbers
     if np.var(data) == 0:
@@ -61,7 +47,7 @@ def get_band_energies(data, dim):
         band_energy_matrix[:, i] = np.sum(psd[:, band_mask], axis=1)
 
     return band_energy_matrix
-def get_stats_2(fcn, feature):
+def get_stats_2(fcn, feature, logger):
     logger.info(f"{feature} stats {pd.Series(fcn.flatten()).describe()}")
 
 # why use 3 metrics - analyse which metric is discriminating
@@ -259,7 +245,7 @@ def split_graphs(data, train_ratio, test_ratio):
 def get_pyg_grs(num_electrodes, new_data_train):
     return create_tensordata_new(num_nodes=num_electrodes, data_list=new_data_train, complete=True, save=False, logdir=None)
 
-def get_stats(fcns):
+def get_stats(fcns, logger):
     feature_map = {
         0: "ones",
         1: "correlation",
@@ -276,9 +262,7 @@ def get_stats(fcns):
     logger.info(f"samples correlation mean is {mean_value} and variance value is {std_value}...\n")
 
 
-
-
-def get_segement_stats(segement):
+def get_segement_stats(segement, logger):
     # random_samples = random.sample(segements, 1000)
     # for sample in random_samples:
     logger.info(f"Segment Mean: {np.mean(segement)}")
@@ -293,7 +277,7 @@ def get_segement_stats(segement):
     plt.show()
     # break
 
-def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
+def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index,logger):
 
     if preictal_mat is not None:
         logger.info(f"generating preictal segments for ...")
@@ -381,8 +365,32 @@ def generate_embeddings_util(data_log_dir,preictal_mat,ictal_mat,file_index):
     pyg_Data_path = f"{data_log_dir}/jh101_pyg_Data_{file_index}.pt"
 
     convert_to_Data(pyg_grs, logger, save=True, logdir=pyg_Data_path)
+
+def get_logger(data_log):
+    logger = logging.getLogger("GraphGeneration")
+    logger.setLevel(logging.INFO)
+
+    # File handler
+    file_handler = logging.FileHandler(os.path.join(data_log, "graph_generation.log"))
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+def get_filtered_data(raw):
+    raw.notch_filter([50], fir_design='firwin') 
+    raw.filter(0.5, 50, fir_design='firwin')
+    return raw
+
+def normalise_data(data):
+    return ((data - np.mean(data, axis=1, keepdims=True)) / np.std(data,axis=1, keepdims=True))
   
 def generate_embeddings(data_path,label_path,index,data_log):
+    # Set up a global logger
+  
+    logger = get_logger(data_log)
+    # Add handler to logger
+    
     logger.info("generating matrices...")
 
     df = pd.read_csv(label_path)
@@ -393,28 +401,46 @@ def generate_embeddings(data_path,label_path,index,data_log):
         os.makedirs(data_log_dir)
 
     for index, row in df.iterrows():
+
         file_name = row['File_names']
         label = row['Labels']
         start = row['Start_time']*freq
         end = row['End_time']*freq
         file_path = f"{data_path}/{file_name}"
+
         try:
-            raw = mne.io.read_raw_edf(file_path)
+            raw = mne.io.read_raw_edf(file_path,preload=True)
         except Exception as e:
             logger.error(f"Error reading .edf file at {file_path}")
+
+        raw = get_filtered_data(raw)
+
         data, times = raw[:]
         data = data[:channels_to_take,:]
+        data = normalise_data(data)
+
         if label == 0: 
             preictal_list = data
-            generate_embeddings_util(data_log_dir,data,None,file_index)
+            generate_embeddings_util(data_log_dir,data,None,file_index,logger)
         else:
             preictal_list = []
             preictal_list.append(data[:, 0:start])
             if end < len(data)-1:
                 preictal_list.append(data[:, end+1:len(data)])
             ictal_list = data[:, start:end]
-            generate_embeddings_util(data_log_dir, np.hstack(preictal_list),ictal_list,file_index)
+            generate_embeddings_util(data_log_dir, np.hstack(preictal_list),ictal_list,file_index,logger)
         file_index += 1
+
+if __name__ == "__main__":
+    index_str = "01"
+    data_base_path = "/Users/dentira/anomaly-detection/1.0.0"
+    label_base_path = "/Users/dentira/anomaly-detection/epilepsy-detection/parsed_labels"
+    p_name = f"chb{index_str}"
+    data_path = os.path.join(data_base_path,p_name)
+    label_path = os.path.join(label_base_path,f"{p_name}_labels.csv")
+    data_log = "/Users/dentira/anomaly-detection/epilepsy-detection/ssl_seizure_detection/logs"
+    generate_embeddings(data_path,label_path,index_str,data_log)
+
 
    
 
