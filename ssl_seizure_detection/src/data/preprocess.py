@@ -42,10 +42,9 @@ def build_K_n(num_nodes):
 
 
 
-def new_grs(data, type="preictal"):
-    
+def new_grs(data, type="non_ictal"):
     # Label data by Y = [Y_1, Y_2] where Y_1 is the binary encoding and Y_2 is the multiclass encoding.
-    if type=="preictal":
+    if type=="preictal" or type=="non_ictal":
         Y = [0, 0]
     elif type=="ictal":
         Y = [1, 1]
@@ -63,9 +62,8 @@ def new_grs(data, type="preictal"):
         # Edge features
         EF_corr = data[i][2][1]
         EF_coh = data[i][2][2]
-        EF_phase = data[i][2][3]
 
-        EF = np.concatenate((EF_corr, EF_coh, EF_phase), axis=2)
+        EF = np.concatenate((EF_corr, EF_coh), axis=2)
 
         new_grs.append(([[NF, EF], Y]))
     
@@ -151,7 +149,7 @@ def adj_to_edge_attr(A, edge_index, edge_attr=None, mode=None):
 
 
 # Version of create_tensordata() but only for lists with entries [[NF, EF], Y] (no Adjacency matrix)
-def create_tensordata_new(num_nodes, data_list, complete=True, save=True, logdir=None):
+def create_tensordata_new(logger,num_nodes, data_list, complete=True, save=True, logdir=None):
     """
     Converts the graph data from the pickle file containing the list of graph representations of with entries of the form [[NF, EF], Y]
     for numpy arrays NF, EF and float Y, to list of graph representations [[edge_index, x, edge_attr], y] for PyG format in torch tensors.
@@ -178,7 +176,6 @@ def create_tensordata_new(num_nodes, data_list, complete=True, save=True, logdir
             # Parse data
             graph, y = example
             x, ef = graph
-            
             # Conver to ef to edge_attr
             edge_attr = ef_to_edge_attr(edge_index, ef=ef)
 
@@ -738,14 +735,23 @@ def run_sorter(logdir,leave_index, run_type="all"):
         test_runs = []
         index = 0
         directories = sorted([d for d in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, d))])
-        for dir in directories:
-            dir_path = os.path.join(logdir, dir)
-            for run in sorted([d for d in os.listdir(dir_path)]):
+        print(directories)
+        for directory in directories:
+            count = 0
+            dir_path = os.path.join(logdir, directory)
+            files = os.listdir(dir_path)
+            pt_files = [f for f in files if f.endswith(".pt")]
+            pt_files = sorted(pt_files, key=lambda x: int(x.split("_")[-1].split(".")[0]))
+            print(pt_files)
+            for run in pt_files:
+                if count == 19: break
                 if not run.endswith("_combined.pt"):
                     if index == leave_index:
+                        print("hello")
                         test_runs.append(torch.load(os.path.join(dir_path, run), weights_only=False))
                     else:
                         all_train_runs.append(torch.load(os.path.join(dir_path, run), weights_only=False))
+                count+=1
             index += 1
         return all_train_runs,test_runs
     else:
@@ -873,8 +879,8 @@ def create_test_and_validation_data_loader(data, config):
     if config.test_ratio != 0:
         test_data = [data[i] for i in test_idx]
         print(f"Number of test examples: {len(test_data)}. Number of test batches: {len(test_loader)}.")
-    
-    return test_loader,val_loader
+        return val_loader,test_loader
+    return val_loader,None
 
 # def create_data_loaders(data, val_ratio=0.2, test_ratio=0.1, batch_size=32, num_workers=4, model_id="supervised", train_ratio=None):
 def create_data_loaders(train_data,test_data,config):

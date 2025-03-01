@@ -86,6 +86,7 @@ def forward_pass(model, batch, model_id="supervised", classify="binary", head="l
 
 
 def get_labels(batch, classify=None, model_id=None):
+    
     supervised_models = {"supervised", "downstream1", "downstream2", "downstream3"}
     if classify=="binary" and model_id in supervised_models:
         labels = batch.y[:, 0].float()  # Select the first column for binary classification
@@ -137,6 +138,7 @@ def calculate_metrics(epoch_train_loss, correct_train, total_train,probabilities
     if model_id != "VICRegT1":
         accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
         return avg_loss, accuracy,f1, precision, recall, auc_score
+        # return avg_loss, accuracy,f1, precision, recall
     else:
         return avg_loss, None
     
@@ -150,7 +152,7 @@ def calculate_metrics(epoch_train_loss, correct_train, total_train,probabilities
 #     # Show the plot
 #     plt.savefig(os.path.join(logdir,f"plot_{mode}_{leave_index}_{epoch}_{type}.png"), dpi=300) 
 #     plt.close()
-def process_model(config, model, loader, criterion, device,logdir,leave_index,epoch, mode="training", optimizer=None):
+def process_model(config, model, loader, criterion, device,logdir,leave_index,epoch,logger, mode="training", optimizer=None):
     """
     Function to process the model, either in training or evaluation mode.
 
@@ -215,7 +217,9 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
     pred_zero = torch.sum(predictions_arr == 0).item()
     pred_ones = torch.sum(predictions_arr == 1).item()
     avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
+    # avg_loss, accuracy,f1, precision, recall= calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
     return avg_loss, accuracy,f1, precision, recall,auc_score, pred_zero, pred_ones
+    # return avg_loss, accuracy,f1, precision, recall,pred_zero, pred_ones
 
 
 
