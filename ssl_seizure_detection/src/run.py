@@ -11,7 +11,7 @@ import os
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2] 
 label_base_path = str(PROJECT_ROOT / "parsed_labels")
-participants_to_avoid = [1,3]
+participants_to_avoid = [0,2,4,5,6,7,8,9,10,11]
 
 def get_logger(data_log):
     logger = logging.getLogger("GraphGeneration")
@@ -119,8 +119,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log,args.stat_log)
 
-    for i in range(args.total_participants):
-        LOO_training(args.data_log,args.stat_log,i)
+    # for i in range(args.total_participants):
+    #     LOO_training(args.data_log,args.stat_log,i)
 
     
 
