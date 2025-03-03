@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path 
 PROJECT_ROOT = Path(__file__).resolve().parents[3] 
-sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/modules"))
-sys.path.append(str(PROJECT_ROOT / "ssl_seizure_detection/src/data"))
 import time
 import json
 import os
@@ -10,13 +8,15 @@ import torch
 import torch.nn.functional as F
 import random
 import wandb
-from loss import VICRegT1Loss
+from ..modules.loss import VICRegT1Loss
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from preprocess import run_sorter, combiner, create_data_loaders, extract_layers
-from models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
+from ..data.preprocess import run_sorter, combiner, create_data_loaders, extract_layers
+from ..modules.models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
 from sklearn.metrics import f1_score, recall_score, precision_score, roc_auc_score
 import matplotlib.pyplot as plt
+from sklearn.metrics import precision_recall_curve
+import numpy as np
 
 
 
@@ -109,15 +109,34 @@ def get_loss(model_id, outputs, labels, criterion, device):
     
     return loss
 
-def get_predictions(classify, outputs, device):
+def get_opt_threshold(labels, preds):
+    precision, recall, thresholds = precision_recall_curve(labels, preds)
+    fscore = np.where(precision + recall > 0, (2 * precision * recall) / (precision + recall), 0)
+    
+    # Locate the index of the largest f-score
+    ix = np.argmax(fscore)
+    
+    # Handle edge case where there may not be a valid threshold
+    if ix == len(thresholds):  
+        return thresholds[-1]  
+    return thresholds[ix]
+
+
+def get_probabilities(classify, outputs, device):
     if classify == "binary":
         probabilities = torch.sigmoid(outputs).squeeze()
-        predictions = (probabilities > 0.5).float().to(device)
     elif classify == "multiclass":
         probabilities = torch.softmax(outputs, dim=1)
+    
+    return probabilities
+
+def get_predictions(classify, probabilities, threshold,device):
+    if classify == "binary":
+        predictions = (probabilities > threshold).float().to(device)
+    elif classify == "multiclass":
         predictions = torch.argmax(probabilities, dim=1)
     
-    return predictions,probabilities
+    return predictions
 
 
 def update_time(start_time, mode="training"):
@@ -127,16 +146,16 @@ def update_time(start_time, mode="training"):
     return end_time
 
 
-def calculate_metrics(epoch_train_loss, correct_train, total_train,probabilities_train, predictions_train, labels_train, train_loader, model_id):
+def calculate_metrics(epoch_train_loss, total_train,probabilities_train, predictions_train, labels_train, train_loader, model_id):
 
     avg_loss = epoch_train_loss / len(train_loader)
     f1 = f1_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     precision = precision_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     recall = recall_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
     auc_score = roc_auc_score(labels_train.cpu().numpy(), probabilities_train.cpu().numpy())
-    
+    correct = (predictions_train == labels_train).sum().item()
     if model_id != "VICRegT1":
-        accuracy = 100.0 * correct_train / total_train if total_train > 0 else 0
+        accuracy = 100.0 * correct / total_train if total_train > 0 else 0
         return avg_loss, accuracy,f1, precision, recall, auc_score
         # return avg_loss, accuracy,f1, precision, recall
     else:
@@ -198,10 +217,8 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
                 optimizer.step()
 
             if config.classify:
-                predictions,probabilities = get_predictions(config.classify, outputs, device)
-                correct += (predictions == labels).sum().item()
+                probabilities = get_probabilities(config.classify, outputs, device)
                 total += labels.size(0)
-                predictions_arr.extend(predictions)
                 probabilities_arr.extend(probabilities)
                 labels_arr.extend(labels)
 
@@ -209,14 +226,17 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
             start_time = update_time(start_time, mode=mode)
     # plot(all_ones, logdir, mode, leave_index,epoch, "true_ones")
     # plot(all_zeroes, logdir, mode, leave_index,epoch, "true_zeroes")
-    # all_one_labels = len(all_ones)
+    # all_one_labels = len(all_ones)probabilities_arr
     # all_zero_labels = len(all_zeroes)
-    predictions_arr = torch.tensor(predictions_arr, device=device)
+
+    labels_arr = torch.tensor(labels_arr, device=device)   
     probabilities_arr = torch.tensor(probabilities_arr, device=device)
-    labels_arr = torch.tensor(labels_arr, device=device)    
+    threshold = get_opt_threshold(np.array(labels_arr.detach().cpu().numpy()), np.array(probabilities_arr.detach().cpu().numpy()))
+    predictions_arr = get_predictions(config.classify,probabilities_arr, threshold,device)
+    predictions_arr = torch.tensor(predictions_arr, device=device)
     pred_zero = torch.sum(predictions_arr == 0).item()
     pred_ones = torch.sum(predictions_arr == 1).item()
-    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
+    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss,total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
     # avg_loss, accuracy,f1, precision, recall= calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
     return avg_loss, accuracy,f1, precision, recall,auc_score, pred_zero, pred_ones
     # return avg_loss, accuracy,f1, precision, recall,pred_zero, pred_ones

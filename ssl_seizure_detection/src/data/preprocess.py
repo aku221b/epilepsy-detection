@@ -737,6 +737,7 @@ def run_sorter(logdir,leave_index, run_type="all"):
         directories = sorted([d for d in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, d))])
         print(directories)
         for directory in directories:
+            if index == 2: break
             count = 0
             dir_path = os.path.join(logdir, directory)
             files = os.listdir(dir_path)
@@ -744,7 +745,7 @@ def run_sorter(logdir,leave_index, run_type="all"):
             pt_files = sorted(pt_files, key=lambda x: int(x.split("_")[-1].split(".")[0]))
             print(pt_files)
             for run in pt_files:
-                if count == 19: break
+                if count == 3: break
                 if not run.endswith("_combined.pt"):
                     if index == leave_index:
                         print("hello")
