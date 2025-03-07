@@ -35,6 +35,7 @@ class TrainConfig(BaseModel):
     eta_min: float
     run_type: str
     exp_id: str
+    files_per_batch:int
     datetime_id: Optional[str] = None
     model_path: Optional[str] = None
     model_dict_path: Optional[str] = None

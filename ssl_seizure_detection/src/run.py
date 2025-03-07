@@ -99,13 +99,12 @@ def LOO_training(data_path, logdir, index):
         eta_min=0.002,
         run_type="all",
         exp_id= "dummy_1",
+        files_per_batch=15,
         datetime_id=None,
         requires_grad=True,
         classify= "binary",
         head="linear"
     )
-
-
     train(train_config, model_config, loss_config, index, logdir)
 
 

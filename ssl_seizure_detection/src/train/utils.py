@@ -11,7 +11,7 @@ import wandb
 from ..modules.loss import VICRegT1Loss
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from ..data.preprocess import run_sorter, combiner, create_data_loaders, extract_layers
+from ..data.preprocess import run_sorter, combiner, create_data_loaders, extract_layers,load_files,create_train_data_loader,create_validation_data_loader
 from ..modules.models import relative_positioning, temporal_shuffling, supervised, VICRegT1, downstream1, downstream2, downstream3
 from sklearn.metrics import f1_score, recall_score, precision_score, roc_auc_score
 import matplotlib.pyplot as plt
@@ -20,7 +20,65 @@ import numpy as np
 
 
 
+def parse_files(config, leave_index):
+    all_train_runs = []
+    all_test_runs = []
+    index = 0
+    directories = sorted([d for d in os.listdir(config.data_path) if os.path.isdir(os.path.join(config.data_path, d))])
+    for directory in directories:
+        if index == 2: break
+        count = 0
+        dir_path = os.path.join(config.data_path, directory)
+        files = os.listdir(dir_path)
+        pt_files = [f for f in files if f.endswith(".pt")]
+        pt_files = sorted(pt_files, key=lambda x: int(x.split("_")[-1].split(".")[0]))
+        for run in pt_files:
+            # if count == 3: break
+            if index == leave_index:
+                all_test_runs.append(os.path.join(dir_path, run))
+            else:
+                all_train_runs.append(os.path.join(dir_path, run))
+            count+=1
+        index += 1
+    return all_train_runs,all_test_runs
 
+def load_data_files(files, config, type):
+    """
+    Loads data from a folder of multiple runs.
+
+    Args:
+        data_path (str): Path to the data folder.
+        run_type (str): Specifies which runs to load. Options are "all", "combined", or "runx" where x is the run number.
+        data_size (float or int): The proportion of the full dataset to use.
+    
+    Returns:
+        data (list): A list of graph representations for a certain number of runs, where the runs included depend on run_type.
+    """
+    data = load_files(files)
+    data_n = 0
+    for run in data:
+        data_n += len(run) 
+    if type == "training" and config.train_ratio <= 1.0:
+        desired_samples = int(data_n * config.train_ratio)
+    elif type == "training" and config.train_ratio > 1.0:
+        desired_samples = config.train_ratio
+    elif type == "evaluation":
+        total_test_ratio = config.test_ratio + config.val_ratio
+        if total_test_ratio <= 1.0:
+            desired_samples = int(data_n *total_test_ratio)
+        elif total_test_ratio > 1.0:
+            desired_samples = total_test_ratio
+    if data:  # Check if data is not empty
+        data = combiner(data, desired_samples)
+    # Compute total samples
+    return data
+
+def get_loader(files, config, type):
+    data = load_data_files(files, config,type)
+    if type == "training":
+        return create_train_data_loader(data, config)
+    elif type == "evaluation":
+        return create_validation_data_loader(data,config)
 
 def load_data(config, leave_index):
     """
@@ -171,7 +229,7 @@ def calculate_metrics(epoch_train_loss, total_train,probabilities_train, predict
 #     # Show the plot
 #     plt.savefig(os.path.join(logdir,f"plot_{mode}_{leave_index}_{epoch}_{type}.png"), dpi=300) 
 #     plt.close()
-def process_model(config, model, loader, criterion, device,logdir,leave_index,epoch,logger, mode="training", optimizer=None):
+def process_model(config, model, files, criterion, device,logdir,leave_index,epoch,logger, mode="training", optimizer=None):
     """
     Function to process the model, either in training or evaluation mode.
 
@@ -195,39 +253,44 @@ def process_model(config, model, loader, criterion, device,logdir,leave_index,ep
         model.train()
         if optimizer is None:
             raise ValueError("Optimizer is required for training mode")
+        
     elif mode == "evaluation":
         model.eval()
     
     epoch_loss, correct, total,predictions_arr,labels_arr, probabilities_arr = 0, 0, 0, [], [], []
+
     if config.timing:
         start_time = time.time()
-    # all_ones = []
-    # all_zeroes = []
-    for batch_idx, batch in enumerate(loader):
-        batch = batch.to(device)
-        with torch.set_grad_enabled(mode == "training"):
-            outputs = forward_pass(model, batch, config.model_id, config.classify, config.head)
-            labels = get_labels(batch, config.classify, config.model_id)
-            loss = get_loss(config.model_id, outputs, labels, criterion, device)
-            epoch_loss += loss.item()
 
-            if mode == "training":
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+    while files:
+        selected_files = random.sample(files, min(config.files_per_batch, len(files)))
+        loader = get_loader(selected_files, config, mode)
+        files[:] = [item for item in files if item not in selected_files]
+        for batch_idx, batch in enumerate(loader):
+            batch = batch.to(device)
+            with torch.set_grad_enabled(mode == "training"):
+                outputs = forward_pass(model, batch, config.model_id, config.classify, config.head)
+                labels = get_labels(batch, config.classify, config.model_id)
+                loss = get_loss(config.model_id, outputs, labels, criterion, device)
+                epoch_loss += loss.item()
 
-            if config.classify:
-                probabilities = get_probabilities(config.classify, outputs, device)
-                total += labels.size(0)
-                probabilities_arr.extend(probabilities)
-                labels_arr.extend(labels)
+                if mode == "training":
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
-        if config.timing and batch_idx % 100 == 0:
-            start_time = update_time(start_time, mode=mode)
-    # plot(all_ones, logdir, mode, leave_index,epoch, "true_ones")
-    # plot(all_zeroes, logdir, mode, leave_index,epoch, "true_zeroes")
-    # all_one_labels = len(all_ones)probabilities_arr
-    # all_zero_labels = len(all_zeroes)
+                if config.classify:
+                    probabilities = get_probabilities(config.classify, outputs, device)
+                    total += labels.size(0)
+                    probabilities_arr.extend(probabilities)
+                    labels_arr.extend(labels)
+
+            if config.timing and batch_idx % 100 == 0:
+                start_time = update_time(start_time, mode=mode)
+        # plot(all_ones, logdir, mode, leave_index,epoch, "true_ones")
+        # plot(all_zeroes, logdir, mode, leave_index,epoch, "true_zeroes")
+        # all_one_labels = len(all_ones)probabilities_arr
+        # all_zero_labels = len(all_zeroes)
 
     labels_arr = torch.tensor(labels_arr, device=device)   
     probabilities_arr = torch.tensor(probabilities_arr, device=device)

@@ -73,14 +73,20 @@ def train(config, model_config, loss_config, leave_index, logdir):
     logger.addHandler(file_handler)
     
     logger.info(f"Testing on {leave_index+1}th participant....")
-    
-    # Load data
-    # data = load_data(config)
-    logger.info(f"loading train and test data...")
-    try: 
-        train_data, test_data=load_data(config, leave_index)
-    except Exception as e:
+
+    # parse train/test files
+
+    try:
+        train_files,test_files = parse_files(config,leave_index)
+    except:
         logger.error(f"failed loading data :- {e}")
+
+
+    # logger.info(f"loading train and test data...")
+    # try: 
+    #     train_data, test_data=load_data(config, leave_index)
+    # except Exception as e:
+    #     logger.error(f"failed loading data :- {e}")
 
 
     # print(data)
@@ -95,11 +101,11 @@ def train(config, model_config, loss_config, leave_index, logdir):
         logger.error(f"Failed loading data :- {e}")
     
     # Initialize loaders
-    logger.info(f"initializing loaders...")
-    try:
-        train_loader, val_loader, test_loader, loader_stats = initialize_loaders(train_data,test_data,config)
-    except Exception as e:
-        logger.error(f"Failed initializing loaders :- {e}")
+    # logger.info(f"initializing loaders...")
+    # try:
+    #     # train_loader, val_loader, test_loader, loader_stats = initialize_loaders(train_data,test_data,config)
+    # except Exception as e:
+    #     logger.error(f"Failed initializing loaders :- {e}")
     
     
     # Initialize model
@@ -145,10 +151,10 @@ def train(config, model_config, loss_config, leave_index, logdir):
     for epoch in range(config.epochs):
 
         #<----------Training---------->
-        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall,epoch_train_auc_score, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_loader, criterion, device, logdir,leave_index,epoch,logger,"training", optimizer)
+        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall,epoch_train_auc_score, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_files[:], criterion, device, logdir,leave_index,epoch,logger,"training", optimizer)
 
         #<----------Validation---------->
-        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall,epoch_val_auc_score, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, val_loader, criterion, device,logdir,leave_index, epoch,logger,"evaluation",  optimizer)
+        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall,epoch_val_auc_score, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, test_files[:], criterion, device,logdir,leave_index, epoch,logger,"evaluation",  optimizer)
         
         
         print(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 

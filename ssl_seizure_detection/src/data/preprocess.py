@@ -713,6 +713,12 @@ def convert_to_TripletData(data_list, save=True, logdir=None):
 
     return converted_data
 
+def load_files(files):
+    data = []
+    for file in files:
+        
+        data.append(torch.load(file, weights_only=False))
+    return data
 
 def run_sorter(logdir,leave_index, run_type="all"):
     """
@@ -836,6 +842,35 @@ def create_train_data_loader(data, config):
     print(f"Number of training examples: {len(train_data)}. Number of training batches: {len(train_loader)}.")
 
     return train_loader
+
+def create_validation_data_loader(data, config):
+    n = len(data)
+    indices = list(range(n))
+    val_size = int(config.val_ratio) if config.val_ratio > 1 else int(n * config.val_ratio)
+    # Ensure there's no overlap in sample sizes
+    assert (val_size) <= n
+
+    # Randomly sample indices for train, validation, and test sets without replacement
+    all_indices = set(indices)
+    val_indices = set(random.sample(all_indices, val_size))
+    val_idx = list(val_indices)
+
+    val_data = [data[i] for i in val_idx]
+
+    if config.model_id in {"supervised", "downstream1", "downstream2", "downstream3"}:
+        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers)
+       
+    elif config.model_id in {"relative_positioning", "VICRegT1"}:
+        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
+       
+    elif config.model_id=="temporal_shuffling":
+        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
+    
+    # Print Stats
+    print(f"Total number of examples in dataset: {n}.")
+    print(f"Total number of examples used: {len(indices)}.")
+    print(f"Number of validation examples: {len(val_data)}. Number of validation batches: {len(val_loader)}.")
+    return val_loader
 
 def create_test_and_validation_data_loader(data, config):
     n = len(data)
