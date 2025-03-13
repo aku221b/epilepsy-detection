@@ -33,7 +33,7 @@ def parse_files(config, leave_index):
         pt_files = [f for f in files if f.endswith(".pt")]
         pt_files = sorted(pt_files, key=lambda x: int(x.split("_")[-1].split(".")[0]))
         for run in pt_files:
-            # if count == 3: break
+            if count == 3: break
             if index == leave_index:
                 all_test_runs.append(os.path.join(dir_path, run))
             else:
@@ -167,17 +167,18 @@ def get_loss(model_id, outputs, labels, criterion, device):
     
     return loss
 
-def get_opt_threshold(labels, preds):
-    precision, recall, thresholds = precision_recall_curve(labels, preds)
-    fscore = np.where(precision + recall > 0, (2 * precision * recall) / (precision + recall), 0)
-    
+def get_opt_metrics(labels, probs):
+    precision, recall, thresholds = precision_recall_curve(labels, probs)
+    valid = np.isfinite(precision) & np.isfinite(recall) & ((precision + recall) > 0)
+    fscore = np.zeros_like(precision)
+    fscore[valid] = (2 * precision[valid] * recall[valid]) / (precision[valid] + recall[valid])
     # Locate the index of the largest f-score
     ix = np.argmax(fscore)
     
     # Handle edge case where there may not be a valid threshold
     if ix == len(thresholds):  
         return thresholds[-1]  
-    return thresholds[ix]
+    return thresholds[ix],precision[ix],recall[ix],fscore[ix]
 
 
 def get_probabilities(classify, outputs, device):
@@ -204,17 +205,14 @@ def update_time(start_time, mode="training"):
     return end_time
 
 
-def calculate_metrics(epoch_train_loss, total_train,probabilities_train, predictions_train, labels_train, train_loader, model_id):
-
-    avg_loss = epoch_train_loss / len(train_loader)
-    f1 = f1_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
-    precision = precision_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
-    recall = recall_score(labels_train.cpu().numpy(), predictions_train.cpu().numpy())
-    auc_score = roc_auc_score(labels_train.cpu().numpy(), probabilities_train.cpu().numpy())
-    correct = (predictions_train == labels_train).sum().item()
+def calculate_metrics(epoch_loss, total,probabilities_arr, predictions_arr, labels_arr, loader, model_id):
+# epoch_loss,total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id
+    avg_loss = epoch_loss / len(loader)
+    auc_score = roc_auc_score(labels_arr.detach().cpu().numpy(), probabilities_arr.detach().cpu().numpy())
+    correct = (predictions_arr == labels_arr).sum().item()
     if model_id != "VICRegT1":
-        accuracy = 100.0 * correct / total_train if total_train > 0 else 0
-        return avg_loss, accuracy,f1, precision, recall, auc_score
+        accuracy = 100.0 * correct / total if total > 0 else 0
+        return avg_loss, accuracy, auc_score
         # return avg_loss, accuracy,f1, precision, recall
     else:
         return avg_loss, None
@@ -293,15 +291,14 @@ def process_model(config, model, files, criterion, device,logdir,leave_index,epo
         # all_zero_labels = len(all_zeroes)
 
     labels_arr = torch.tensor(labels_arr, device=device)   
-    probabilities_arr = torch.tensor(probabilities_arr, device=device)
-    threshold = get_opt_threshold(np.array(labels_arr.detach().cpu().numpy()), np.array(probabilities_arr.detach().cpu().numpy()))
+    probabilities_arr = torch.stack(probabilities_arr).to(device)
+    threshold,precision,recall,fscore = get_opt_metrics(np.array(labels_arr.detach().cpu().numpy()), np.array(probabilities_arr.detach().cpu().numpy()))
     predictions_arr = get_predictions(config.classify,probabilities_arr, threshold,device)
-    predictions_arr = torch.tensor(predictions_arr, device=device)
     pred_zero = torch.sum(predictions_arr == 0).item()
     pred_ones = torch.sum(predictions_arr == 1).item()
-    avg_loss, accuracy,f1, precision, recall,auc_score = calculate_metrics(epoch_loss,total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
+    avg_loss, accuracy,auc_score = calculate_metrics(epoch_loss,total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
     # avg_loss, accuracy,f1, precision, recall= calculate_metrics(epoch_loss, correct, total,probabilities_arr,predictions_arr,labels_arr,loader, config.model_id)
-    return avg_loss, accuracy,f1, precision, recall,auc_score, pred_zero, pred_ones
+    return avg_loss, accuracy,fscore, precision,recall,auc_score, pred_zero,pred_ones
     # return avg_loss, accuracy,f1, precision, recall,pred_zero, pred_ones
 
 
