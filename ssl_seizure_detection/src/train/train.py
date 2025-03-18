@@ -151,31 +151,29 @@ def train(config, model_config, loss_config, leave_index, logdir):
     for epoch in range(config.epochs):
 
         #<----------Training---------->
-        epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall,epoch_train_auc_score, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_files[:], criterion, device, logdir,leave_index,epoch,logger,"training", optimizer)
+        epoch_train_loss, epoch_train_acc,epoch_train_sensitivity, epoch_train_specificity,epoch_train_auc_score, epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_files[:], criterion, device, logdir,leave_index,epoch,logger,"training", optimizer)
 
         #<----------Validation---------->
-        epoch_val_loss, epoch_val_acc,epoch_val_f1, epoch_val_precision, epoch_val_recall,epoch_val_auc_score, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, test_files[:], criterion, device,logdir,leave_index, epoch,logger,"evaluation",  optimizer)
+        epoch_val_loss, epoch_val_acc,epoch_val_sensitivity, epoch_val_specificity, epoch_val_auc_score, epoch_val_pred_zero,epoch_val_pred_ones  = process_model(config, model, test_files[:], criterion, device,logdir,leave_index, epoch,logger,"evaluation",  optimizer)
         
         
         print(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 
-              Train Accuracy: {epoch_train_acc}, Train F1: {epoch_train_f1}, 
-              Train Precision: {epoch_train_precision} Train Recall: {epoch_train_recall} 
-              Train AUC score: {epoch_train_auc_score}
-              Train 0s count: {epoch_train_pred_zero} Train 1s count: {epoch_train_pred_ones} 
+              Train Accuracy: {epoch_train_acc},Train Sensitivity: {epoch_train_sensitivity}
+              Train Specificity: {epoch_train_specificity},Train AUC score: {epoch_train_auc_score}
+              Train 0s count: {epoch_train_pred_zero},Train 1s count: {epoch_train_pred_ones} 
               Validation Loss: {epoch_val_loss}, Validation Accuracy: {epoch_val_acc} 
-              Validation F1: {epoch_val_f1}, Validation Precision: {epoch_val_precision} 
-              Validation Recall: {epoch_val_recall} Validation AUC score: {epoch_val_auc_score}
-              Validation 0s count: {epoch_val_pred_zero} Validation 1s count: {epoch_val_pred_ones}""")
+              Validation Specificity: {epoch_val_specificity},Validation Sensitivity: {epoch_val_sensitivity} 
+              Validation AUC score: {epoch_val_auc_score} Validation 0s count: {epoch_val_pred_zero} 
+              Validation 1s count: {epoch_val_pred_ones}""")
         
         logger.info(f"""Epoch: {epoch+1}, Train Loss: {epoch_train_loss}, 
-              Train Accuracy: {epoch_train_acc}, Train F1: {epoch_train_f1}, 
-              Train Precision: {epoch_train_precision} Train Recall: {epoch_train_recall} 
-              Train AUC score: {epoch_train_auc_score}
-              Train 0s count: {epoch_train_pred_zero} Train 1s count: {epoch_train_pred_ones} 
+              Train Accuracy: {epoch_train_acc},Train Sensitivity: {epoch_train_sensitivity}
+              Train Specificity: {epoch_train_specificity},Train AUC score: {epoch_train_auc_score}
+              Train 0s count: {epoch_train_pred_zero},Train 1s count: {epoch_train_pred_ones} 
               Validation Loss: {epoch_val_loss}, Validation Accuracy: {epoch_val_acc} 
-              Validation F1: {epoch_val_f1}, Validation Precision: {epoch_val_precision} 
-              Validation Recall: {epoch_val_recall} Validation AUC score: {epoch_val_auc_score}
-              Validation 0s count: {epoch_val_pred_zero} Validation 1s count: {epoch_val_pred_ones}""")
+              Validation Specificity: {epoch_val_specificity},Validation Sensitivity: {epoch_val_sensitivity} 
+              Validation AUC score: {epoch_val_auc_score} Validation 0s count: {epoch_val_pred_zero} 
+              Validation 1s count: {epoch_val_pred_ones}""")
         
         # epoch_train_loss, epoch_train_acc,epoch_train_f1, epoch_train_precision, epoch_train_recall,epoch_train_pred_zero, epoch_train_pred_ones = process_model(config, model, train_loader, criterion, device, logdir,leave_index,epoch,"training", optimizer)
 
@@ -199,11 +197,11 @@ def train(config, model_config, loss_config, leave_index, logdir):
         #       Validation 0s count: {epoch_val_pred_zero} Validation 1s count: {epoch_val_pred_ones}""")
 
         #<----------Statistics---------->
-        (train_loss.append((epoch, epoch_train_loss, )), val_loss.append((epoch, epoch_val_loss)), 
-         train_acc.append((epoch, epoch_train_acc)), val_acc.append((epoch, epoch_val_acc)), 
-         train_f1.append((epoch, epoch_train_f1)), val_f1.append((epoch, epoch_val_f1)),
-         train_prec.append((epoch, epoch_train_precision)), val_prec.append((epoch, epoch_val_precision)),
-         train_rec.append((epoch, epoch_train_recall)), val_rec.append((epoch, epoch_val_recall)))
+        # (train_loss.append((epoch, epoch_train_loss, )), val_loss.append((epoch, epoch_val_loss)), 
+        #  train_acc.append((epoch, epoch_train_acc)), val_acc.append((epoch, epoch_val_acc)), 
+        #  train_f1.append((epoch, epoch_train_f1)), val_f1.append((epoch, epoch_val_f1)),
+        #  train_prec.append((epoch, epoch_train_precision)), val_prec.append((epoch, epoch_val_precision)),
+        #  train_rec.append((epoch, epoch_train_recall)), val_rec.append((epoch, epoch_val_recall)))
         
         #<----------Early Stopping---------->
         if early_stopping(epoch_val_loss, best_val_loss, counter, model, model_dir, config):
