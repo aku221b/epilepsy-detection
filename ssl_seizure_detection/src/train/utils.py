@@ -54,25 +54,34 @@ def load_data_files(files, config, type):
         data (list): A list of graph representations for a certain number of runs, where the runs included depend on run_type.
     """
     data = load_files(files)
-    data_n = 0
-    for run in data:
-        data_n += len(run) 
-    if type == "training" and config.train_ratio <= 1.0:
-        desired_samples = int(data_n * config.train_ratio)
-    elif type == "training" and config.train_ratio > 1.0:
-        desired_samples = config.train_ratio
-    elif type == "evaluation":
-        total_test_ratio = config.test_ratio + config.val_ratio
-        if total_test_ratio <= 1.0:
-            desired_samples = int(data_n *total_test_ratio)
-        elif total_test_ratio > 1.0:
-            desired_samples = total_test_ratio
-    if data:  # Check if data is not empty
-        data = combiner(data, desired_samples)
+    # data_n = 0
+    # for run in data:
+    #     data_n += len(run) 
+    # if type == "training" and config.train_ratio <= 1.0:
+    #     desired_samples = int(data_n * config.train_ratio)
+    # elif type == "training" and config.train_ratio > 1.0:
+    #     desired_samples = config.train_ratio
+    # elif type == "evaluation":
+    #     total_test_ratio = config.test_ratio + config.val_ratio
+    #     if total_test_ratio <= 1.0:
+    #         desired_samples = int(data_n *total_test_ratio)
+    #     elif total_test_ratio > 1.0:
+    #         desired_samples = total_test_ratio
+    # if data:  # Check if data is not empty
+    # data = combiner(data, desired_samples)
+    data = combiner(data)
     # Compute total samples
     return data
 
-def get_loader(files, config, type):
+def get_data(files, config, type):
+    data = load_data_files(files, config,type)
+    # if type == "training":
+    #     return create_train_data_loader(data, config)
+    # elif type == "evaluation":
+    #     return create_validation_data_loader(data,config)
+    return data
+
+def get_loader(files, config, type, device):
     data = load_data_files(files, config,type)
     if type == "training":
         return create_train_data_loader(data, config)
@@ -131,7 +140,7 @@ def load_data(config, leave_index):
     return train_data,test_data
 
 
-def forward_pass(model, batch, model_id="supervised", classify="binary", head="linear", p=0.1):
+def forward_pass(model, batch, model_id="supervised", classify="binary", head="linear", p=0.1, ):
     if model_id=="supervised":
         return model(batch)
     elif model_id=="downstream1" or model_id=="downstream2":
@@ -145,14 +154,16 @@ def forward_pass(model, batch, model_id="supervised", classify="binary", head="l
 def get_labels(batch, classify=None, model_id=None):
     
     supervised_models = {"supervised", "downstream1", "downstream2", "downstream3"}
+    labels = []
     if classify=="binary" and model_id in supervised_models:
-        labels = batch.y[:, 0].float()  # Select the first column for binary classification
+        for g in batch:
+            labels.extend(g.y[:, 0].float())  # Select the first column for binary classification
     elif classify=="multiclass" and model_id in supervised_models:
         labels = batch.y[:, 1].long()  # Select the second column and ensure it's 1D
     else:
         labels = batch.y.float()
     
-    return labels
+    return torch.tensor(labels, dtype=torch.float32)
 
 
 def get_loss(model_id, outputs, labels, criterion, device):
@@ -255,13 +266,13 @@ def process_model(config, model, files, criterion, device,logdir,leave_index,epo
         start_time = time.time()
 
     while files:
-        selected_files = random.sample(files, min(config.files_per_batch, len(files)))
-        loader = get_loader(selected_files, config, mode)
+        selected_files = random.sample(files, min(config.files_per_batch, 15))
+        loader = get_loader(selected_files, config, mode, device)
         files[:] = [item for item in files if item not in selected_files]
         for batch_idx, batch in enumerate(loader):
-            batch = batch.to(device)
+            # batch = batch.to(device)
             with torch.set_grad_enabled(mode == "training"):
-                outputs = forward_pass(model, batch, config.model_id, config.classify, config.head)
+                outputs = forward_pass(model, batch,config.model_id, config.classify, config.head)
                 labels = get_labels(batch, config.classify, config.model_id)
                 loss = get_loss(config.model_id, outputs, labels, criterion, device)
                 epoch_loss += loss.item()
@@ -341,7 +352,7 @@ def initialize_model(config, model_config, device):
     """
     
     if config.model_id=="supervised":
-        model = supervised(model_config).to(device)
+        model = supervised(model_config, device).to(device)
     elif config.model_id=="relative_positioning":
         model = relative_positioning(model_config).to(device)
     elif config.model_id=="temporal_shuffling":
@@ -477,7 +488,6 @@ def print_learning_rate(config, optimizer):
 
 def testing_and_logging(config, model, test_loader, criterion, device, optimizer, stats_dir):
     test_loss, test_acc, *_ = process_model(config, model, test_loader, criterion, device, "evaluation", optimizer)
-        
     save_to_json(test_loss, stats_dir, "test_loss.json")
     save_to_json(test_acc, stats_dir, "test_acc.json")
     print(f"Training complete. Test Loss: {test_loss}. Test Accuracy: {test_acc}.")

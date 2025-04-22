@@ -17,7 +17,7 @@ import traceback
 freq = 256
 ws = int(2*freq)
 step = int(0.125*ws)
-dim = channels_to_take = 22
+dim = 22
 data_theshold = 100000
 n_subepochs = 4
 overlap = 0.5
@@ -31,6 +31,30 @@ freq_bands = {
 fmin = 5
 fmax = 40
 nperseg = 128 # for wetch method
+selected_channels = channels = [
+    "FP1-F7",
+    "F7-T7",
+    "T7-P7",
+    "P7-O1",
+    "FP1-F3",
+    "F3-C3",
+    "C3-P3",
+    "P3-O1",
+    "FP2-F4",
+    "F4-C4",
+    "C4-P4",
+    "P4-O2",
+    "FP2-F8",
+    "F8-T8",
+    "T8-P8-1",
+    "P8-O2",
+    "FZ-CZ",
+    "CZ-PZ",
+    "P7-T7",
+    "T7-FT9",
+    "FT9-FT10",
+    "FT10-T8",
+]
 # bipolar montages -- check the data
 
 # def get_stats(fcns, logger):
@@ -596,6 +620,7 @@ def generate_embeddings(data_path,label_path,index,data_log, stat_log):
 
     for index, row in df.iterrows():
         # if file_index == 16: break
+
         file_name = row['File_names']
         label = row['Labels']
         start = row['Start_time']*freq
@@ -605,11 +630,10 @@ def generate_embeddings(data_path,label_path,index,data_log, stat_log):
             raw = mne.io.read_raw_edf(file_path,preload=True)
         except Exception as e:
             logger.error(f"Error reading .edf file at {file_path}")
-
+        raw.pick(selected_channels)
         raw = get_filtered_data(raw)
-
         data, times = raw[:]
-        data = data[:channels_to_take,:]
+        logger.info(data.shape)
         data = normalise_data(data)
 
         if label == 0: 

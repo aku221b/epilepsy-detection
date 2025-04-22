@@ -5,8 +5,8 @@ import random
 import os
 import copy
 from torch_geometric.data import Data
-from torch.utils.data import random_split
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
+# from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 import sys
 
@@ -716,7 +716,6 @@ def convert_to_TripletData(data_list, save=True, logdir=None):
 def load_files(files):
     data = []
     for file in files:
-        
         data.append(torch.load(file, weights_only=False))
     return data
 
@@ -767,7 +766,7 @@ def run_sorter(logdir,leave_index, run_type="all"):
                 return torch.load(os.path.join(logdir, run), weights_only=False)
 
 
-def combiner(all_lists, desired_samples):
+def combiner(all_lists, desired_samples = -1):
     """
     Combines multiple lists by randomly sampling from each, ensuring an almost equal contribution 
     from each list to meet a desired total number of samples.
@@ -780,96 +779,105 @@ def combiner(all_lists, desired_samples):
         List[any]: A list containing the sampled items from all input lists, shuffled.
     """
     # Check if sum of all list lengths is smaller than desired_samples
-    total_length = sum(len(lst) for lst in all_lists)
-    if total_length < desired_samples:
-        final_list = [item for sublist in all_lists for item in sublist]
-        random.shuffle(final_list)
-        return final_list
+    # total_length = sum(len(lst) for lst in all_lists)
+    # if total_length < desired_samples:
+    #     final_list = [item for sublist in all_lists for item in sublist]
+    #     random.shuffle(final_list)
+    #     return final_list
+    # Check if sum of all list lengths is smaller than desired_samples
+    # total_length = sum(len(lst) for lst in all_lists)
+    # if total_length < desired_samples:
+    final_list = [item for sublist in all_lists for item in sublist]
+        # return final_list
     
     # Sort lists by length
-    sorted_lists = sorted(all_lists, key=len)
+    # sorted_lists = sorted(all_lists, key=len)
     
-    # Calculate initial quota
-    Quota = desired_samples // len(all_lists)
+    # # Calculate initial quota
+    # Quota = desired_samples // len(all_lists)
 
-    # Initialize an empty list to hold the final sampled elements
-    final_list = []
+    # # Initialize an empty list to hold the final sampled elements
+    # final_list = []
     
-    remaining_lists = len(sorted_lists)
-    for lst in sorted_lists:
-        remaining_lists -= 1  # Decrement the count of remaining lists
-        random.shuffle(lst)  # Shuffle before sampling
-        if len(lst) < Quota:
-            final_list.extend(lst)
-            if remaining_lists:  # Avoid division by zero
-                Quota = (desired_samples - len(final_list)) // remaining_lists
-        else:
-            final_list.extend(random.sample(lst, Quota))
+    # remaining_lists = len(sorted_lists)
+    # for lst in sorted_lists:
+    #     remaining_lists -= 1  # Decrement the count of remaining lists
+    #     random.shuffle(lst)  # Shuffle before sampling
+    #     if len(lst) < Quota:
+    #         final_list.extend(lst)
+    #         if remaining_lists:  # Avoid division by zero
+    #             Quota = (desired_samples - len(final_list)) // remaining_lists
+    #     else:
+    #         final_list.extend(random.sample(lst, Quota))
 
-    # Shuffle final list to mix samples from different runs
-    random.shuffle(final_list)
+    # # Shuffle final list to mix samples from different runs
+    # random.shuffle(final_list)
     
     return final_list
+
+def getDataLoader(data, batch_size):
+    batches = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
+    random.shuffle(batches)
+    return batches
 
 
 def create_train_data_loader(data, config): 
     n = len(data)
-    indices = list(range(n))
-    # Ensure there's no overlap in sample sizes
-    train_size = int(config.train_ratio) if config.train_ratio > 1 else int(n * config.train_ratio)
-    assert (train_size) <= n 
+    # indices = list(range(n))
+    # # Ensure there's no overlap in sample sizes
+    # train_size = int(config.train_ratio) if config.train_ratio > 1 else int(n * config.train_ratio)
+    # assert (train_size) <= n 
 
-    # Randomly sample indices for train, validation, and test sets without replacement
-    all_indices = set(indices)
-    if config.train_ratio:
-        train_indices = set(random.sample(all_indices, train_size))
-    else:
-        train_indices = all_indices
+    # # Randomly sample indices for train, validation, and test sets without replacement
+    # all_indices = set(indices)
+    # if config.train_ratio:
+    #     train_indices = set(random.sample(all_indices, train_size))
+    # else:
+    #     train_indices = all_indices
 
-    # Convert to lists
-    train_idx = list(train_indices)
-    train_data = [data[i] for i in train_idx]
+    # # Convert to lists
+    # train_idx = list(train_indices)
+    # train_data = [data[i] for i in train_idx]
 
     if config.model_id in {"supervised", "downstream1", "downstream2", "downstream3"}:
-        train_loader = DataLoader(train_data, batch_size=config.batch_size, num_workers=config.num_workers)
-    elif config.model_id in {"relative_positioning", "VICRegT1"}:
-        train_loader = DataLoader(train_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
-    elif config.model_id=="temporal_shuffling":
-        train_loader = DataLoader(train_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
+        train_loader = getDataLoader(data, config.batch_size)
+    # elif config.model_id in {"relative_positioning", "VICRegT1"}:
+    #     train_loader = DataLoader(data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
+    # elif config.model_id=="temporal_shuffling":
+    #     train_loader = DataLoader(data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
     # Print Stats
     print(f"Total number of examples in dataset: {n}.")
-    print(f"Total number of examples used: {len(indices)}.")
-    print(f"Number of training examples: {len(train_data)}. Number of training batches: {len(train_loader)}.")
+    # print(f"Total number of examples used: {len(indices)}.")
+    print(f"Number of training examples: {len(data)}. Number of training batches: {len(train_loader)}.")
 
     return train_loader
 
 def create_validation_data_loader(data, config):
     n = len(data)
-    indices = list(range(n))
-    val_size = int(config.val_ratio) if config.val_ratio > 1 else int(n * config.val_ratio)
-    # Ensure there's no overlap in sample sizes
-    assert (val_size) <= n
+    # indices = list(range(n))
+    # val_size = int(config.val_ratio) if config.val_ratio > 1 else int(n * config.val_ratio)
+    # # Ensure there's no overlap in sample sizes
+    # assert (val_size) <= n
 
-    # Randomly sample indices for train, validation, and test sets without replacement
-    all_indices = set(indices)
-    val_indices = set(random.sample(all_indices, val_size))
-    val_idx = list(val_indices)
+    # # Randomly sample indices for train, validation, and test sets without replacement
+    # all_indices = set(indices)
+    # val_indices = set(random.sample(all_indices, val_size))
+    # val_idx = list(val_indices)
 
-    val_data = [data[i] for i in val_idx]
+    # val_data = [data[i] for i in val_idx]
 
     if config.model_id in {"supervised", "downstream1", "downstream2", "downstream3"}:
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers)
+        val_loader = getDataLoader(data, config.batch_size)
        
-    elif config.model_id in {"relative_positioning", "VICRegT1"}:
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
+    # elif config.model_id in {"relative_positioning", "VICRegT1"}:
+    #     val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
        
-    elif config.model_id=="temporal_shuffling":
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
+    # elif config.model_id=="temporal_shuffling":
+    #     val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
     
     # Print Stats
     print(f"Total number of examples in dataset: {n}.")
-    print(f"Total number of examples used: {len(indices)}.")
-    print(f"Number of validation examples: {len(val_data)}. Number of validation batches: {len(val_loader)}.")
+    print(f"Number of validation examples: {len(data)}. Number of validation batches: {len(val_loader)}.")
     return val_loader
 
 def create_test_and_validation_data_loader(data, config):
@@ -895,18 +903,18 @@ def create_test_and_validation_data_loader(data, config):
     test_data = [data[i] for i in test_idx] if config.test_ratio != 0 else []
 
 
-    if config.model_id in {"supervised", "downstream1", "downstream2", "downstream3"}:
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers)
-        if config.test_ratio != 0:
-            test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers)
-    elif config.model_id in {"relative_positioning", "VICRegT1"}:
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
-        if config.test_ratio != 0:
-            test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
-    elif config.model_id=="temporal_shuffling":
-        val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
-        if config.test_ratio != 0:    
-            test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
+    # if config.model_id in {"supervised", "downstream1", "downstream2", "downstream3"}:
+    #     val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers)
+    #     if config.test_ratio != 0:
+    #         test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers)
+    # elif config.model_id in {"relative_positioning", "VICRegT1"}:
+    #     val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
+    #     if config.test_ratio != 0:
+    #         test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2'])
+    # elif config.model_id=="temporal_shuffling":
+    #     val_loader = DataLoader(val_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
+    #     if config.test_ratio != 0:    
+    #         test_loader = DataLoader(test_data, batch_size=config.batch_size, num_workers=config.num_workers, follow_batch=['x1', 'x2', 'x3'])
     
     # Print Stats
     print(f"Total number of examples in dataset: {n}.")

@@ -11,7 +11,7 @@ import os
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2] 
 label_base_path = str(PROJECT_ROOT / "parsed_labels")
-participants_to_avoid = [0,2,4,5,6,7,8,9,10,11]
+participants_to_avoid = [0,2,4,5,6,7,8,9,10]
 
 def get_logger(data_log):
     logger = logging.getLogger("GraphGeneration")
@@ -69,6 +69,7 @@ def LOO_training(data_path, logdir, index):
     model_config = {
         "num_node_features":6,
         "num_edge_features":2,
+        "num_nodes":22,
         "hidden_channels":[32, 16, 16],
         "batch_norm":True,
         "classify":"binary",
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--total_participants", type=int, help ="number of participants data to train on", required=True)
 
     args = parser.parse_args()
-    # generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log,args.stat_log)
+    # generate_all_embeddings(args.total_participants,args.data_base_path,label_base_path, args.data_log,args.stat_log) 
 
     for i in range(args.total_participants):
         LOO_training(args.data_log,args.stat_log,i)

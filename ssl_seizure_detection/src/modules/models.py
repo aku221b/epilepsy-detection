@@ -214,18 +214,35 @@ class temporal_shuffling(nn.Module):
 
 
 class Encoder1(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device):
         super(Encoder1, self).__init__()
         hidden_channels = config["hidden_channels"]
-        
+        self.device = device
+        self.num_nodes = config["num_nodes"]
+        self.num_node_features = config["num_node_features"]
+        self.num_edge_features = config["num_edge_features"]
+        self.num_edges = config["num_nodes"]*(config["num_nodes"]-1)
+       
         # Initialize the MLP for NNConv
-        self.edge_mlp = EdgeMLP(config["num_edge_features"], config["num_node_features"], hidden_channels[0])
+        input_dim_node = config["num_node_features"]*self.num_nodes
+        input_dim_edge = config["num_edge_features"]*self.num_edges
+
+        self.hidden_dim_node =  input_dim_node
+        self.hidden_dim_edge = input_dim_edge
+
+        self.node_lstm = nn.LSTMCell(input_dim_node, input_dim_node)
+        self.edge_lstm = nn.LSTMCell(input_dim_edge, input_dim_edge)
+
+        # (h, c) for edge
         
+
+        self.edge_mlp = EdgeMLP(config["num_edge_features"], config["num_node_features"], hidden_channels[0])
         # Encoder
         self.conv1 = NNConv(config["num_node_features"], hidden_channels[0], self.edge_mlp)
         self.conv2 = GATConv(hidden_channels[0], hidden_channels[1], heads=1, concat=False)
         self.conv3 = GATConv(hidden_channels[1], hidden_channels[2], heads=1, concat=False)
-        
+
+     
         # Batch Normalization for graph layers
         if config["batch_norm"]:
             self.bn_graph1 = GraphBatchNorm(hidden_channels[0])
@@ -233,19 +250,54 @@ class Encoder1(nn.Module):
             self.bn_graph3 = GraphBatchNorm(hidden_channels[2])
         else:
             self.bn_graph1 = self.bn_graph2 = self.bn_graph3 = nn.Identity()
-            
+
+    def reset_state(self):
+        self.node_hc = (
+            torch.zeros(1, self.hidden_dim_node, device=self.device),
+            torch.zeros(1, self.hidden_dim_node, device=self.device)
+        )
+        self.edge_hc = (
+            torch.zeros(1, self.hidden_dim_edge, device=self.device),
+            torch.zeros(1, self.hidden_dim_edge, device=self.device)
+        )
+
     def forward(self, batch):
         # NNConv layer
-        x = F.relu(self.bn_graph1(self.conv1(batch.x, batch.edge_index, batch.edge_attr)))
-        
-        # GATConv layers
-        x = F.relu(self.bn_graph2(self.conv2(x, batch.edge_index)))
-        x = F.relu(self.bn_graph3(self.conv3(x, batch.edge_index)))
-        
-        # Global average pooling
-        x = global_mean_pool(x, batch.batch)
-        
-        return x
+        self.node_hc = None  # (h, c) for node
+        self.edge_hc = None 
+
+        graph_features = []
+        for g in batch:
+            g.to(self.device)
+            x_flat = g.x.view(1, -1)
+            e_flat = g.edge_attr.view(1, -1)
+
+            if self.node_hc is None or self.edge_hc is None:
+                self.reset_state()
+
+            h_node, c_node = self.node_lstm(x_flat, self.node_hc)
+            h_edge, c_edge = self.edge_lstm(e_flat, self.edge_hc)
+
+            self.node_hc = (h_node.detach(), c_node.detach())
+            self.edge_hc = (h_edge.detach(), c_edge.detach())
+
+            g.x = h_node.view(self.num_nodes, self.num_node_features)
+            g.edge_attr = h_edge.view(self.num_edges, self.num_edge_features)
+
+            x = F.relu(self.bn_graph1(self.conv1(g.x, g.edge_index, g.edge_attr)))
+            
+            # GATConv layers
+            x = F.relu(self.bn_graph2(self.conv2(x, g.edge_index)))
+            x = F.relu(self.bn_graph3(self.conv3(x, g.edge_index)))
+            
+            # Global average pooling
+            x = global_mean_pool(x, g.batch)
+
+            graph_features.extend(x)
+
+        mat = torch.stack(graph_features, dim=0)
+                
+        return mat
 
 class Classifier1(nn.Module):
     def __init__(self, config):
@@ -275,9 +327,9 @@ class Classifier1(nn.Module):
 
 
 class supervised(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device):
         super(supervised, self).__init__()
-        self.encoder = Encoder1(config)
+        self.encoder = Encoder1(config, device)
         self.classifier = Classifier1(config)
 
     def forward(self, batch):
